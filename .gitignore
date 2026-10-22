@@ -1,0 +1,15 @@
+bin/
+obj/
+.vs/
+*.user
+TestResults/
+.work/
+dist/
+# Large third-party binary: fetched and checksum-verified by installer/fetch-rclone.ps1
+tools/rclone/rclone.exe
+# Official WinFsp installer bundled into setup.exe (fetched + signature-checked by build-release.ps1)
+tools/winfsp/*.msi
+# Optional publisher Google OAuth client shipped with releases - never commit it
+installer/google-client.json
+# Local Claude Code session files
+.claude/

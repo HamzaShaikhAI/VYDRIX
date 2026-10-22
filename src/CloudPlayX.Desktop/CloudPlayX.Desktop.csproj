@@ -1,0 +1,23 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <AssemblyName>CloudPlayX</AssemblyName>
+    <RootNamespace>CloudPlayX.Desktop</RootNamespace>
+    <ApplicationIcon>Assets\cloudplayx.ico</ApplicationIcon>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.12" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\CloudPlayX.App\CloudPlayX.App.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <Resource Include="Assets\cloudplayx.ico" />
+    <None Include="..\..\tools\rclone\rclone.exe" Link="tools\rclone\rclone.exe" CopyToOutputDirectory="PreserveNewest" Condition="Exists('..\..\tools\rclone\rclone.exe')" />
+    <None Include="..\..\tools\rclone\SHA256SUMS.v1.75.2" Link="tools\rclone\SHA256SUMS.v1.75.2" CopyToOutputDirectory="PreserveNewest" Condition="Exists('..\..\tools\rclone\SHA256SUMS.v1.75.2')" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\CloudPlayX.Core\CloudPlayX.Core.csproj" />
+    <ProjectReference Include="..\..\src\CloudPlayX.Diagnostics\CloudPlayX.Diagnostics.csproj" />
+    <ProjectReference Include="..\..\src\CloudPlayX.Mount\CloudPlayX.Mount.csproj" />
+    <ProjectReference Include="..\..\src\CloudPlayX.Providers\CloudPlayX.Providers.csproj" />
+    <ProjectReference Include="..\..\src\CloudPlayX.Cache\CloudPlayX.Cache.csproj" />
+    <ProjectReference Include="..\..\src\CloudPlayX.Streaming\CloudPlayX.Streaming.csproj" />
+    <ProjectReference Include="..\..\src\CloudPlayX.Games\CloudPlayX.Games.csproj" />
+    <ProjectReference Include="..\..\src\CloudPlayX.SimCloud\CloudPlayX.SimCloud.csproj" />
+    <ProjectReference Include="..\..\src\CloudPlayX.App\CloudPlayX.App.csproj" />
+  </ItemGroup>
+</Project>

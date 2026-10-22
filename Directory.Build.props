@@ -1,0 +1,15 @@
+﻿<Project>
+  <PropertyGroup>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Company>CLOUDPLAY X</Company>
+    <Product>CLOUDPLAY X</Product>
+    <Version>0.7.0</Version>
+    <Copyright>CLOUDPLAY X contributors</Copyright>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+    <PlatformTarget Condition="'$(PlatformTarget)' == ''">x64</PlatformTarget>
+    <RuntimeIdentifier Condition="'$(UseRid)' == 'true'">win-x64</RuntimeIdentifier>
+    <NoWarn>$(NoWarn);CA1416</NoWarn>
+  </PropertyGroup>
+</Project>
