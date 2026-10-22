@@ -1,6 +1,11 @@
 # Third-party notices
 
-CLOUDPLAY X bundles or depends on the following components.
+VYDRIX bundles or depends on the following components.
+
+## CloudPlayX (reference baseline)
+
+Portions of VYDRIX are derived from CloudPlayX v0.7.0.
+Copyright (c) 2026 CLOUDPLAY X contributors. MIT License.
 
 ## rclone (bundled: `tools/rclone/rclone.exe`, v1.75.2)
 
@@ -31,12 +36,12 @@ THE SOFTWARE.
 The binary was downloaded from `https://downloads.rclone.org/v1.75.2/` and its archive was verified against the
 official `SHA256SUMS` (included next to the binary).
 
-## WinFsp (official installer included in `CloudPlayX-…-setup.exe`, v2.1.25156)
+## WinFsp (official installer v2.1.25156)
 
 https://winfsp.dev, Copyright (C) Bill Zissimopoulos / Navimatics LLC. GPLv3 with a FLOSS exception. Source
 code: https://github.com/winfsp/winfsp. The setup program carries the unmodified, Authenticode-signed
 `winfsp-2.1.25156.msi` from https://github.com/winfsp/winfsp/releases and runs it only when WinFsp is missing.
-CLOUDPLAY X does not link WinFsp; rclone uses the WinFsp installation present on the system. WinFsp is a separate
+VYDRIX does not link WinFsp; rclone uses the WinFsp installation present on the system. WinFsp is a separate
 program with its own uninstall entry ("WinFsp 2025").
 
 ## NuGet packages
@@ -48,8 +53,6 @@ program with its own uninstall entry ("WinFsp 2025").
 | Microsoft.Extensions.Logging, DependencyInjection | MIT |
 | System.Security.Cryptography.ProtectedData | MIT |
 | System.Diagnostics.EventLog | MIT |
-| xunit, Microsoft.NET.Test.Sdk, coverlet (tests only) | Apache-2.0 / MIT |
-
-## .NET runtime (bundled in self-contained releases)
-
-MIT License, © .NET Foundation and Contributors.
+| Microsoft.NET.Test.Sdk | MIT |
+| xunit | Apache-2.0 |
+| coverlet.collector | MIT |

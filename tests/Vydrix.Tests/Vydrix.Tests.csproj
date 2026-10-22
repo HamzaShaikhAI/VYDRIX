@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="coverlet.collector" Version="6.0.4" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4" />
+  </ItemGroup>
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Vydrix.Core\Vydrix.Core.csproj" />
+    <ProjectReference Include="..\..\src\Vydrix.Diagnostics\Vydrix.Diagnostics.csproj" />
+    <ProjectReference Include="..\..\src\Vydrix.Mount\Vydrix.Mount.csproj" />
+    <ProjectReference Include="..\..\src\Vydrix.Cache\Vydrix.Cache.csproj" />
+    <ProjectReference Include="..\..\src\Vydrix.Streaming\Vydrix.Streaming.csproj" />
+    <ProjectReference Include="..\..\src\Vydrix.Games\Vydrix.Games.csproj" />
+    <ProjectReference Include="..\..\src\Vydrix.Providers\Vydrix.Providers.csproj" />
+    <ProjectReference Include="..\..\src\Vydrix.SimCloud\Vydrix.SimCloud.csproj" />
+  </ItemGroup>
+</Project>
+

@@ -1,0 +1,15 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Vydrix.Core\Vydrix.Core.csproj" />
+    <ProjectReference Include="..\Vydrix.Mount\Vydrix.Mount.csproj" />
+    <ProjectReference Include="..\Vydrix.Cache\Vydrix.Cache.csproj" />
+    <ProjectReference Include="..\Vydrix.Streaming\Vydrix.Streaming.csproj" />
+    <ProjectReference Include="..\Vydrix.Diagnostics\Vydrix.Diagnostics.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="System.Diagnostics.EventLog" Version="10.0.12" />
+  </ItemGroup>
+</Project>

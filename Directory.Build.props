@@ -1,12 +1,12 @@
-﻿<Project>
+<Project>
   <PropertyGroup>
     <LangVersion>latest</LangVersion>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <Company>CLOUDPLAY X</Company>
-    <Product>CLOUDPLAY X</Product>
-    <Version>0.7.0</Version>
-    <Copyright>CLOUDPLAY X contributors</Copyright>
+    <Company>VYDRIX Team</Company>
+    <Product>VYDRIX</Product>
+    <Version>1.0.0</Version>
+    <Copyright>Copyright (c) 2026 VYDRIX contributors. Based on CLOUDPLAY X (c) 2026 CLOUDPLAY X contributors.</Copyright>
     <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
     <PlatformTarget Condition="'$(PlatformTarget)' == ''">x64</PlatformTarget>
     <RuntimeIdentifier Condition="'$(UseRid)' == 'true'">win-x64</RuntimeIdentifier>

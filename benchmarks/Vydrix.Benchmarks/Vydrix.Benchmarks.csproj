@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Vydrix.Core\Vydrix.Core.csproj" />
+    <ProjectReference Include="..\..\src\Vydrix.Diagnostics\Vydrix.Diagnostics.csproj" />
+    <ProjectReference Include="..\..\src\Vydrix.Mount\Vydrix.Mount.csproj" />
+    <ProjectReference Include="..\..\src\Vydrix.Providers\Vydrix.Providers.csproj" />
+    <ProjectReference Include="..\..\src\Vydrix.Cache\Vydrix.Cache.csproj" />
+    <ProjectReference Include="..\..\src\Vydrix.Streaming\Vydrix.Streaming.csproj" />
+    <ProjectReference Include="..\..\src\Vydrix.Games\Vydrix.Games.csproj" />
+    <ProjectReference Include="..\..\src\Vydrix.SimCloud\Vydrix.SimCloud.csproj" />
+    <ProjectReference Include="..\..\src\Vydrix.App\Vydrix.App.csproj" />
+  </ItemGroup>
+</Project>

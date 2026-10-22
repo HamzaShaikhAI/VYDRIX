@@ -1,0 +1,57 @@
+using System.Windows;
+using Vydrix.App;
+using Vydrix.Core;
+using Microsoft.Win32;
+
+namespace Vydrix.Desktop.Views;
+
+public partial class AddGameWindow : Window
+{
+    private sealed record DriveChoice(string Id, string Root, string Label);
+
+    public AddGameWindow(AppHost host)
+    {
+        InitializeComponent();
+        var drives = host.Mounts.Sessions.Where(s => s.State == MountState.Mounted)
+            .Select(s => new DriveChoice(s.Id, s.Root, $"{s.DriveLetter}:  {s.Definition.DisplayName}")).ToList();
+        DriveBox.ItemsSource = drives;
+        DriveBox.SelectedIndex = drives.Count > 0 ? 0 : -1;
+    }
+
+    public string? MountId { get; private set; }
+    public string? Folder { get; private set; }
+    public string? GameName { get; private set; }
+
+    private void Browse(object sender, RoutedEventArgs e)
+    {
+        if (DriveBox.SelectedItem is not DriveChoice d) return;
+        var dlg = new OpenFolderDialog { Title = "Select the game's folder on the cloud drive", InitialDirectory = d.Root };
+        if (dlg.ShowDialog() != true) return;
+        if (!dlg.FolderName.StartsWith(d.Root, StringComparison.OrdinalIgnoreCase))
+        {
+            Status.Text = $"The folder must be on drive {d.Root}.";
+            return;
+        }
+        FolderBox.Text = dlg.FolderName[d.Root.Length..].Replace('\\', '/');
+        if (string.IsNullOrWhiteSpace(NameBox.Text)) NameBox.Text = Path.GetFileName(dlg.FolderName.TrimEnd('\\'));
+    }
+
+    private void Ok(object sender, RoutedEventArgs e)
+    {
+        if (DriveBox.SelectedItem is not DriveChoice d)
+        {
+            Status.Text = "No mounted drive.";
+            return;
+        }
+        var rel = FolderBox.Text.Trim().Replace('\\', '/').Trim('/');
+        if (!Directory.Exists(Path.Combine(d.Root, rel.Replace('/', '\\'))))
+        {
+            Status.Text = "That folder does not exist on the drive.";
+            return;
+        }
+        MountId = d.Id;
+        Folder = rel;
+        GameName = string.IsNullOrWhiteSpace(NameBox.Text) ? null : NameBox.Text.Trim();
+        DialogResult = true;
+    }
+}

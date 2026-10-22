@@ -1,0 +1,23 @@
+<Solution>
+  <Folder Name="/benchmarks/">
+    <Project Path="benchmarks/Vydrix.Benchmarks/Vydrix.Benchmarks.csproj" />
+  </Folder>
+  <Folder Name="/src/">
+    <Project Path="src/Vydrix.App/Vydrix.App.csproj" />
+    <Project Path="src/Vydrix.Cache/Vydrix.Cache.csproj" />
+    <Project Path="src/Vydrix.Cli/Vydrix.Cli.csproj" />
+    <Project Path="src/Vydrix.Core/Vydrix.Core.csproj" />
+    <Project Path="src/Vydrix.Desktop/Vydrix.Desktop.csproj" />
+    <Project Path="src/Vydrix.Diagnostics/Vydrix.Diagnostics.csproj" />
+    <Project Path="src/Vydrix.Games/Vydrix.Games.csproj" />
+    <Project Path="src/Vydrix.Mount/Vydrix.Mount.csproj" />
+    <Project Path="src/Vydrix.Providers/Vydrix.Providers.csproj" />
+    <Project Path="src/Vydrix.SimCloud/Vydrix.SimCloud.csproj" />
+    <Project Path="src/Vydrix.Streaming/Vydrix.Streaming.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Vydrix.IntegrationTests/Vydrix.IntegrationTests.csproj" />
+    <Project Path="tests/Vydrix.Tests/Vydrix.Tests.csproj" />
+    <Project Path="tests/VydrixDemoGame/VydrixDemoGame.csproj" />
+  </Folder>
+</Solution>
