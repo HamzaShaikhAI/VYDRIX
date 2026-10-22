@@ -153,7 +153,8 @@ public sealed class RcloneMountService : IAsyncDisposable
         if (!File.Exists(marker)) File.WriteAllText(marker, "This folder is managed by VYDRIX (rclone VFS cache). Safe to delete only when unmounted.\n");
     }
 
-    public const string CacheMarker = ".cloudplayx-cache";
+    public const string CacheMarker = ".vydrix-cache";
+    public const string LegacyCacheMarker = ".cloudplayx-cache";
 
     private async Task StartProcessAsync(MountSession s, RcloneInfo rclone, CancellationToken ct)
     {

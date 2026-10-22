@@ -24,7 +24,8 @@ public static class HybridBuilder
         ".pdb", ".sig", ".url", ".info", ".vdf", ".yaml", ".yml", ".toml", ".log"
     };
 
-    public const string ManifestName = ".cloudplayx-hybrid.json";
+    public const string ManifestName = ".vydrix-hybrid.json";
+    public const string LegacyManifestName = ".cloudplayx-hybrid.json";
 
     public static HybridPlan Plan(IReadOnlyList<FileStat> files, long smallFileLimit = 2 * ByteSize.MiB, long essentialLimit = 256 * ByteSize.MiB,
         IReadOnlyCollection<string>? pinned = null)

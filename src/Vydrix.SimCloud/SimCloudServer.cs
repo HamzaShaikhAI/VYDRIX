@@ -246,7 +246,7 @@ public sealed class SimCloudServer : IAsyncDisposable
 
     private async Task WriteHeadAsync(NetworkStream s, string status, Dictionary<string, string> headers)
     {
-        var sb = new StringBuilder($"HTTP/1.1 {status}\r\nServer: CloudPlayX-SimCloud\r\nDate: {DateTime.UtcNow:R}\r\n");
+        var sb = new StringBuilder($"HTTP/1.1 {status}\r\nServer: Vydrix-SimCloud\r\nDate: {DateTime.UtcNow:R}\r\n");
         foreach (var (k, v) in headers) sb.Append(k).Append(": ").Append(v).Append("\r\n");
         sb.Append("\r\n");
         await s.WriteAsync(Encoding.ASCII.GetBytes(sb.ToString()), _cts.Token);

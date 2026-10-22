@@ -66,7 +66,7 @@ public partial class FirstRunWindow : Window
     private void Browse(object sender, RoutedEventArgs e)
     {
         var d = new OpenFolderDialog { Title = "Choose a folder on an NTFS drive for the cache" };
-        if (d.ShowDialog() == true) CacheBox.Text = Path.Combine(d.FolderName, "CloudPlayX-cache");
+        if (d.ShowDialog() == true) CacheBox.Text = Path.Combine(d.FolderName, "Vydrix-cache");
     }
 
     private void Ok(object sender, RoutedEventArgs e)

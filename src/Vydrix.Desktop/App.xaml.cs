@@ -1,6 +1,11 @@
+using System;
+using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Windows;
+using System.Windows.Interop;
 using Vydrix.App;
+using Vydrix.Core;
 using Vydrix.Desktop.ViewModels;
 using Vydrix.Desktop.Views;
 using Microsoft.Extensions.Logging;
@@ -12,15 +17,30 @@ public partial class App : Application
 {
     private Mutex? _single;
     private AppHost? _host;
+    private TrayIconManager? _tray;
     private bool _shuttingDown;
+    private bool _forceExit;
 
     protected override async void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+
+        // DEF-01: Handle CLI password helper in-process before acquiring GUI mutex or starting WPF UI
+        if (TryHandleCliCommand(e.Args))
+        {
+            Shutdown(Environment.ExitCode);
+            return;
+        }
+
+        var startMinimized = e.Args.Any(a => a is "--minimized" or "--tray" or "--background");
+
         _single = new Mutex(true, @"Local\Vydrix.Desktop.SingleInstance", out var created);
         if (!created)
         {
-            MessageBox.Show("VYDRIX is already running.", "VYDRIX", MessageBoxButton.OK, MessageBoxImage.Information);
+            if (!startMinimized)
+            {
+                MessageBox.Show("VYDRIX is already running.", "VYDRIX", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
             Shutdown();
             return;
         }
@@ -47,7 +67,19 @@ public partial class App : Application
         var window = new MainWindow { DataContext = vm };
         MainWindow = window;
         window.Closing += OnClosing;
-        window.Show();
+
+        // Initialize native system tray icon
+        _tray = new TrayIconManager(window, _host);
+
+        if (!startMinimized)
+        {
+            window.Show();
+        }
+        else
+        {
+            // Ensure window handle is created so tray icon can receive messages
+            new WindowInteropHelper(window).EnsureHandle();
+        }
 
         try
         {
@@ -55,9 +87,17 @@ public partial class App : Application
         }
         catch (Exception ex)
         {
-            MessageBox.Show(window, "Startup problem: " + Diagnostics.Redactor.Redact(ex.Message), "VYDRIX", MessageBoxButton.OK, MessageBoxImage.Warning);
+            if (!startMinimized)
+            {
+                MessageBox.Show(window, "Startup problem: " + Diagnostics.Redactor.Redact(ex.Message), "VYDRIX", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+            else
+            {
+                _host.LoggerFactory.CreateLogger("App").LogError(ex, "Startup initialization error in background mode");
+            }
         }
-        if (!_host.Settings.FirstRunCompleted)
+
+        if (!_host.Settings.FirstRunCompleted && !startMinimized)
         {
             var first = new FirstRunWindow(_host) { Owner = window };
             first.ShowDialog();
@@ -65,9 +105,24 @@ public partial class App : Application
         vm.Selected.OnShown();
     }
 
+    public void RequestExit()
+    {
+        _forceExit = true;
+        MainWindow?.Close();
+    }
+
     private async void OnClosing(object? sender, System.ComponentModel.CancelEventArgs e)
     {
         if (_shuttingDown || _host is null) return;
+
+        // If user didn't explicitly request exit from tray menu, and LaunchMinimizedToTray is enabled, just hide to tray
+        if (!_forceExit && _host.Settings.LaunchMinimizedToTray)
+        {
+            e.Cancel = true;
+            MainWindow?.Hide();
+            return;
+        }
+
         e.Cancel = true;
         var keep = _host.Settings.KeepMountsAfterExit;
         if (_host.Mounts.Sessions.Count > 0)
@@ -83,6 +138,7 @@ public partial class App : Application
         _shuttingDown = true;
         MainWindow!.IsEnabled = false;
         MainWindow.Title = "VYDRIX — closing…";
+        _tray?.Dispose();
         try
         {
             await _host.ShutdownAsync(keep);
@@ -91,5 +147,41 @@ public partial class App : Application
         catch (Exception) { }
         _single?.ReleaseMutex();
         Shutdown();
+    }
+
+    [System.Runtime.InteropServices.DllImport("kernel32.dll")]
+    private static extern bool AttachConsole(int dwProcessId);
+
+    private static bool TryHandleCliCommand(string[] args)
+    {
+        if (args.Length > 1 && args[0] == "secret" && args[1] == "emit-config-pass")
+        {
+            AttachConsole(-1);
+            var home = Opt(args, "--home");
+            var paths = new AppPaths(home);
+            var pass = Diagnostics.SecretStore.Load(paths.ConfigPasswordFile);
+            if (pass is not null)
+            {
+                using var stdout = Console.OpenStandardOutput();
+                using var writer = new StreamWriter(stdout, System.Text.Encoding.UTF8) { AutoFlush = true };
+                writer.Write(pass);
+                Environment.ExitCode = 0;
+            }
+            else
+            {
+                using var stderr = Console.OpenStandardError();
+                using var writer = new StreamWriter(stderr, System.Text.Encoding.UTF8) { AutoFlush = true };
+                writer.WriteLine("No configuration key found for this Windows user.");
+                Environment.ExitCode = 1;
+            }
+            return true;
+        }
+        return false;
+    }
+
+    private static string? Opt(string[] args, string name)
+    {
+        var i = Array.IndexOf(args, name);
+        return i >= 0 && i + 1 < args.Length ? args[i + 1] : null;
     }
 }

@@ -23,7 +23,7 @@ internal static class Program
         if (Arg(args, "--generate") is { } dir) return Generate(dir);
         ApplicationConfiguration.Initialize();
         var level = int.TryParse(Arg(args, "--level"), out var l) ? l : 0;
-        var results = Arg(args, "--results") ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "CloudPlayX-DemoGame", "results.jsonl");
+        var results = Arg(args, "--results") ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Vydrix-DemoGame", "results.jsonl");
         using var form = new LoaderForm(AppContext.BaseDirectory, level, args.Contains("--autoexit"), results);
         Application.Run(form);
         return form.ExitCode;

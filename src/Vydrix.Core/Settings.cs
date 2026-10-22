@@ -16,6 +16,9 @@ public sealed class AppSettings
     public bool EncryptRcloneConfig { get; set; } = true;
     public bool FirstRunCompleted { get; set; }
     public string? LocalGamesRoot { get; set; }
+    public bool StartOnSignIn { get; set; } = false;
+    public bool AutoReconnectDrives { get; set; } = true;
+    public bool LaunchMinimizedToTray { get; set; } = false;
 }
 
 public sealed class CacheSettings

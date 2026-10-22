@@ -89,7 +89,11 @@ public sealed class AppHost : IAsyncDisposable
     public IReadOnlyList<RemoteEntry> Remotes { get; private set; } = [];
     public LaunchSession? CurrentLaunch { get; private set; }
     public bool DiskPressure => _diskPressure;
-    public string CliPath => File.Exists(Path.Combine(AppPaths.AppDirectory, "vydrix.exe")) ? Path.Combine(AppPaths.AppDirectory, "vydrix.exe") : Path.Combine(AppPaths.AppDirectory, "cpx.exe");
+    public string CliPath =>
+        File.Exists(Path.Combine(AppPaths.AppDirectory, "vydrix-cli.exe")) ? Path.Combine(AppPaths.AppDirectory, "vydrix-cli.exe") :
+        File.Exists(Path.Combine(AppPaths.AppDirectory, "vydrix.exe")) ? Path.Combine(AppPaths.AppDirectory, "vydrix.exe") :
+        File.Exists(Path.Combine(AppPaths.AppDirectory, "Vydrix.exe")) ? Path.Combine(AppPaths.AppDirectory, "Vydrix.exe") :
+        Path.Combine(AppPaths.AppDirectory, "cpx.exe");
     public string CpxPath => CliPath;
 
     /// <summary>Cumulative prefetch accounting over finished sessions (plus live sessions in <see cref="StreamingEngine.PrefetchTotals"/>).</summary>

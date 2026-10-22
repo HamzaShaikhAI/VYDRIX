@@ -63,7 +63,8 @@ public static class DiskSafetyGuard
 /// <summary>Cache maintenance that only ever touches folders VYDRIX created (marker file required).</summary>
 public static class CacheMaintenance
 {
-    public const string Marker = ".cloudplayx-cache";
+    public const string Marker = ".vydrix-cache";
+    public const string LegacyMarker = ".cloudplayx-cache";
 
     public sealed record ClearResult(bool Cleared, long BytesFreed, int DirtyFilesBlocking, string Message);
 
@@ -79,7 +80,7 @@ public static class CacheMaintenance
         if (!Directory.Exists(dir)) return new ClearResult(true, 0, 0, "Cache already empty.");
         if (!dir.StartsWith(root + "\\", StringComparison.OrdinalIgnoreCase))
             return new ClearResult(false, 0, 0, "Refused: folder is outside the VYDRIX cache root.");
-        if (!File.Exists(Path.Combine(dir, Marker)))
+        if (!File.Exists(Path.Combine(dir, Marker)) && !File.Exists(Path.Combine(dir, LegacyMarker)))
             return new ClearResult(false, 0, 0, "Refused: folder is not marked as a VYDRIX cache.");
 
         var files = CacheInspector.Enumerate(dir).ToList();

@@ -2,7 +2,7 @@
   <PropertyGroup>
     <TargetFramework>net10.0-windows</TargetFramework>
     <OutputType>Exe</OutputType>
-    <AssemblyName>vydrix</AssemblyName>
+    <AssemblyName>vydrix-cli</AssemblyName>
     <RootNamespace>Vydrix.Cli</RootNamespace>
   </PropertyGroup>
   <ItemGroup>

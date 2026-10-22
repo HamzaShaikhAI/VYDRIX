@@ -8,7 +8,7 @@ namespace Vydrix.Streaming.GameAware;
 
 /// <summary>
 /// A message from an authorized game integration (official modding API, plugin, or the game's own telemetry).
-/// Protocol: one JSON object per line on the named pipe \\.\pipe\cloudplayx-telemetry-&lt;gameId&gt;.
+/// Protocol: one JSON object per line on the named pipe \\.\pipe\vydrix-telemetry-&lt;gameId&gt;.
 /// <code>
 /// {"type":"position","x":10.5,"y":0,"z":-3.2,"region":"downtown"}
 /// {"type":"region","region":"harbor"}
@@ -40,7 +40,7 @@ public sealed class NamedPipeTelemetryServer : IGameTelemetrySource, IAsyncDispo
 
     public NamedPipeTelemetryServer(string gameId)
     {
-        PipeName = "cloudplayx-telemetry-" + new string(gameId.Where(char.IsLetterOrDigit).ToArray());
+        PipeName = "vydrix-telemetry-" + new string(gameId.Where(char.IsLetterOrDigit).ToArray());
         _loop = Task.Run(LoopAsync);
     }
 

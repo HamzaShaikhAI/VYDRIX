@@ -99,7 +99,7 @@ public sealed partial class SmartCacheViewModel : PageViewModel
     private void ChooseLocation()
     {
         var d = new OpenFolderDialog { Title = "Choose a folder on an NTFS drive for the VYDRIX cache", InitialDirectory = CacheRoot };
-        if (d.ShowDialog() == true) CacheRoot = Path.Combine(d.FolderName, d.FolderName.EndsWith("CloudPlayX-cache", StringComparison.OrdinalIgnoreCase) ? "" : "CloudPlayX-cache");
+        if (d.ShowDialog() == true) CacheRoot = Path.Combine(d.FolderName, d.FolderName.EndsWith("Vydrix-cache", StringComparison.OrdinalIgnoreCase) || d.FolderName.EndsWith("CloudPlayX-cache", StringComparison.OrdinalIgnoreCase) ? "" : "Vydrix-cache");
     }
 
     [RelayCommand]
@@ -358,7 +358,7 @@ public sealed partial class DiagnosticsViewModel : PageViewModel
     [RelayCommand]
     private void Export()
     {
-        var dlg = new SaveFileDialog { FileName = $"cloudplayx-diagnostics-{DateTime.Now:yyyyMMdd-HHmm}.zip", Filter = "ZIP archive|*.zip" };
+        var dlg = new SaveFileDialog { FileName = $"vydrix-diagnostics-{DateTime.Now:yyyyMMdd-HHmm}.zip", Filter = "ZIP archive|*.zip" };
         if (dlg.ShowDialog() != true) return;
         var sections = new Dictionary<string, string>
         {

@@ -246,4 +246,44 @@ public class HardeningAndDefectTests
             try { tempRoot.Delete(recursive: true); } catch { }
         }
     }
+
+    [Fact]
+    public void AppSettings_supports_startup_and_recovery_options()
+    {
+        var s = new AppSettings();
+        Assert.False(s.StartOnSignIn);
+        Assert.True(s.AutoReconnectDrives);
+        Assert.False(s.LaunchMinimizedToTray);
+
+        s.StartOnSignIn = true;
+        s.LaunchMinimizedToTray = true;
+
+        var json = System.Text.Json.JsonSerializer.Serialize(s);
+        var deserialized = System.Text.Json.JsonSerializer.Deserialize<AppSettings>(json);
+        Assert.NotNull(deserialized);
+        Assert.True(deserialized.StartOnSignIn);
+        Assert.True(deserialized.AutoReconnectDrives);
+        Assert.True(deserialized.LaunchMinimizedToTray);
+    }
+
+    [Fact]
+    public void StartupRegistrationService_registers_and_unregisters_cleanly()
+    {
+        var tempExe = Path.GetTempFileName();
+        try
+        {
+            var registered = Vydrix.App.StartupRegistrationService.Register(tempExe, launchMinimized: true);
+            Assert.True(registered);
+            Assert.True(Vydrix.App.StartupRegistrationService.IsRegistered());
+
+            var unregistered = Vydrix.App.StartupRegistrationService.Unregister();
+            Assert.True(unregistered);
+            Assert.False(Vydrix.App.StartupRegistrationService.IsRegistered());
+        }
+        finally
+        {
+            Vydrix.App.StartupRegistrationService.Unregister();
+            try { File.Delete(tempExe); } catch { }
+        }
+    }
 }

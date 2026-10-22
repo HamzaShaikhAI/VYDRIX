@@ -21,6 +21,7 @@
     <ProjectReference Include="..\..\src\Vydrix.Games\Vydrix.Games.csproj" />
     <ProjectReference Include="..\..\src\Vydrix.Providers\Vydrix.Providers.csproj" />
     <ProjectReference Include="..\..\src\Vydrix.SimCloud\Vydrix.SimCloud.csproj" />
+    <ProjectReference Include="..\..\src\Vydrix.App\Vydrix.App.csproj" />
   </ItemGroup>
 </Project>
 

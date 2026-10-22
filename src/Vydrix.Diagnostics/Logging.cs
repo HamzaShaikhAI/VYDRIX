@@ -52,11 +52,11 @@ public sealed class AppLoggerProvider : ILoggerProvider
         _minLevel = minLevel;
         Directory.CreateDirectory(directory);
         PruneOldLogs();
-        _writer = new Thread(WriteLoop) { IsBackground = true, Name = "cpx-log-writer" };
+        _writer = new Thread(WriteLoop) { IsBackground = true, Name = "vydrix-log-writer" };
         _writer.Start();
     }
 
-    public string CurrentLogFile => Path.Combine(_directory, $"cloudplayx-{DateTime.Now:yyyyMMdd}.log");
+    public string CurrentLogFile => Path.Combine(_directory, $"vydrix-{DateTime.Now:yyyyMMdd}.log");
 
     public ILogger CreateLogger(string categoryName) => new AppLogger(this, categoryName);
 
@@ -111,7 +111,7 @@ public sealed class AppLoggerProvider : ILoggerProvider
     {
         try
         {
-            foreach (var f in Directory.EnumerateFiles(_directory, "cloudplayx-*.log"))
+            foreach (var f in Directory.EnumerateFiles(_directory, "*.*").Where(x => x.Contains("vydrix-") || x.Contains("cloudplayx-")))
                 if (File.GetLastWriteTime(f) < DateTime.Now.AddDays(-14)) File.Delete(f);
         }
         catch (IOException) { }

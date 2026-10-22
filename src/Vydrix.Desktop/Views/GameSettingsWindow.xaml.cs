@@ -42,7 +42,7 @@ public partial class GameSettingsWindow : Window
         ModeHint.Text = (canLink ? "" : "Hybrid needs Windows Developer Mode (Settings → System → For developers) or administrator rights for symbolic links. ")
                         + $"Recommended by analysis: {game.Compatibility?.RecommendedMode.ToString() ?? "unknown"}.";
         AwareBox.IsChecked = game.GameAwareEnabled;
-        AwareHint.Text = $"Requires a mod/plugin that writes JSON lines to \\\\.\\pipe\\cloudplayx-telemetry-{new string(game.Id.Where(char.IsLetterOrDigit).ToArray())} (current Windows user only). " +
+        AwareHint.Text = $"Requires a mod/plugin that writes JSON lines to \\\\.\\pipe\\vydrix-telemetry-{new string(game.Id.Where(char.IsLetterOrDigit).ToArray())} (current Windows user only). " +
                          "No game ships such a plugin today; without one this option has no effect. See docs/GAME_AWARE_PROTOCOL.md.";
     }
 

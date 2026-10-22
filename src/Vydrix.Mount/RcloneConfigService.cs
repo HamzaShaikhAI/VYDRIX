@@ -68,7 +68,11 @@ public sealed class RcloneConfigService
     private static string? FindCliPath()
     {
         var baseDir = AppPaths.AppDirectory;
-        var p = Path.Combine(baseDir, "vydrix.exe");
+        var p = Path.Combine(baseDir, "vydrix-cli.exe");
+        if (File.Exists(p)) return p;
+        p = Path.Combine(baseDir, "vydrix.exe");
+        if (File.Exists(p)) return p;
+        p = Path.Combine(baseDir, "Vydrix.exe");
         if (File.Exists(p)) return p;
         p = Path.Combine(baseDir, "cpx.exe");
         if (File.Exists(p)) return p;
