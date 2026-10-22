@@ -1,7 +1,11 @@
+using System.Net.Http.Headers;
 using System.Security;
+using System.Security.Cryptography;
+using System.Text;
 using Vydrix.Core;
 using Vydrix.Diagnostics;
 using Vydrix.Mount;
+using Vydrix.SimCloud;
 using Vydrix.Streaming;
 
 namespace Vydrix.Tests;
@@ -59,25 +63,68 @@ public class HardeningAndDefectTests
         File.WriteAllText(Path.Combine(legacyDir, "rclone.conf"), "[gdrive]\ntype = drive\n");
         File.WriteAllText(Path.Combine(legacyDir, "cloudplayx.db"), "sqlite-data-mock");
 
-        // Execute migration routine directly on test folders
         try
         {
-            Directory.CreateDirectory(destDir);
-            foreach (var file in Directory.EnumerateFiles(legacyDir))
-            {
-                var name = Path.GetFileName(file);
-                var targetName = name.Equals("cloudplayx.db", StringComparison.OrdinalIgnoreCase) ? "vydrix.db" : name;
-                var targetPath = Path.Combine(destDir, targetName);
-                if (!File.Exists(targetPath))
-                {
-                    File.Copy(file, targetPath, overwrite: false);
-                }
-            }
+            AppPaths.MigrateLegacyIfPresent(destDir, legacyDir);
 
             Assert.True(File.Exists(Path.Combine(destDir, "settings.json")));
             Assert.True(File.Exists(Path.Combine(destDir, "rclone.conf")));
             Assert.True(File.Exists(Path.Combine(destDir, "vydrix.db")), "Legacy cloudplayx.db should be renamed to vydrix.db");
             Assert.Equal("sqlite-data-mock", File.ReadAllText(Path.Combine(destDir, "vydrix.db")));
+            Assert.True(File.Exists(Path.Combine(legacyDir, "cloudplayx.db")), "Source files must not be deleted, leaving original recoverable");
+        }
+        finally
+        {
+            try { tempRoot.Delete(recursive: true); } catch { }
+        }
+    }
+
+    [Fact]
+    public void AppPaths_migration_is_idempotent_and_preserves_existing_vydrix_data()
+    {
+        var tempRoot = Directory.CreateTempSubdirectory("vydrix-idempotence-test");
+        var legacyDir = Path.Combine(tempRoot.FullName, "CloudPlayX");
+        var destDir = Path.Combine(tempRoot.FullName, "Vydrix");
+        Directory.CreateDirectory(legacyDir);
+        Directory.CreateDirectory(destDir);
+
+        File.WriteAllText(Path.Combine(legacyDir, "settings.json"), "{\"version\":\"legacy\"}");
+        File.WriteAllText(Path.Combine(destDir, "settings.json"), "{\"version\":\"vydrix-current\"}");
+
+        try
+        {
+            AppPaths.MigrateLegacyIfPresent(destDir, legacyDir);
+
+            // Must NOT overwrite existing Vydrix settings!
+            var currentContent = File.ReadAllText(Path.Combine(destDir, "settings.json"));
+            Assert.Contains("vydrix-current", currentContent);
+        }
+        finally
+        {
+            try { tempRoot.Delete(recursive: true); } catch { }
+        }
+    }
+
+    [Fact]
+    public void SecretStore_decrypts_both_modern_and_migrated_legacy_keys()
+    {
+        var tempRoot = Directory.CreateTempSubdirectory("vydrix-secret-test");
+        var keyPath = Path.Combine(tempRoot.FullName, "rclone.conf.key");
+        try
+        {
+            // Create legacy-encrypted key using CloudPlayX entropy
+            var legacyEntropy = Encoding.UTF8.GetBytes("CloudPlayX.v1.secret");
+            var plain = Encoding.UTF8.GetBytes("super-secret-dpapi-token");
+            var enc = ProtectedData.Protect(plain, legacyEntropy, DataProtectionScope.CurrentUser);
+            File.WriteAllBytes(keyPath, enc);
+
+            // SecretStore.Load should detect legacy entropy, decrypt it, and upgrade it
+            var decrypted = SecretStore.Load(keyPath);
+            Assert.Equal("super-secret-dpapi-token", decrypted);
+
+            // Re-load to confirm it now decrypts using modern Vydrix entropy
+            var reloaded = SecretStore.Load(keyPath);
+            Assert.Equal("super-secret-dpapi-token", reloaded);
         }
         finally
         {
@@ -122,5 +169,81 @@ public class HardeningAndDefectTests
         parser.ParseLine(completeLine);
 
         Assert.Equal(1, observedCount);
+    }
+
+    [Fact]
+    public async Task MockCloud_deterministic_range_reads_and_throttling()
+    {
+        var tempRoot = Directory.CreateTempSubdirectory("vydrix-mockcloud-test");
+        try
+        {
+            var contentDir = Path.Combine(tempRoot.FullName, "content");
+            Directory.CreateDirectory(contentDir);
+
+            // Generate deterministic 512 KiB test payload
+            var testBytes = new byte[512 * 1024];
+            new Random(42).NextBytes(testBytes);
+            var testFilePath = Path.Combine(contentDir, "payload.bin");
+            await File.WriteAllBytesAsync(testFilePath, testBytes);
+
+            var sourceHash = Convert.ToHexString(SHA256.HashData(testBytes)).ToLowerInvariant();
+
+            await using var server = new SimCloudServer(contentDir, port: 0);
+            using var http = new HttpClient();
+
+            // 1. Full read matches source hash
+            var fullBytes = await http.GetByteArrayAsync($"{server.Url}payload.bin");
+            var fullHash = Convert.ToHexString(SHA256.HashData(fullBytes)).ToLowerInvariant();
+            Assert.Equal(sourceHash, fullHash);
+
+            // 2. Deterministic byte-range request
+            var req = new HttpRequestMessage(HttpMethod.Get, $"{server.Url}payload.bin");
+            req.Headers.Range = new RangeHeaderValue(1000, 1999);
+            using var resp = await http.SendAsync(req);
+            Assert.Equal(System.Net.HttpStatusCode.PartialContent, resp.StatusCode);
+            var slice = await resp.Content.ReadAsByteArrayAsync();
+            Assert.Equal(1000, slice.Length);
+            Assert.Equal(testBytes.AsSpan(1000, 1000).ToArray(), slice);
+
+            // 3. Concurrent random reads
+            var tasks = Enumerable.Range(0, 10).Select(async i =>
+            {
+                var start = i * 4096;
+                var end = start + 4095;
+                using var r = new HttpRequestMessage(HttpMethod.Get, $"{server.Url}payload.bin");
+                r.Headers.Range = new RangeHeaderValue(start, end);
+                using var res = await http.SendAsync(r);
+                var b = await res.Content.ReadAsByteArrayAsync();
+                Assert.Equal(testBytes.AsSpan(start, 4096).ToArray(), b);
+            });
+            await Task.WhenAll(tasks);
+
+            // 4. Request throttling verification
+            server.BandwidthMbps = 8.0; // ~1 MB/s
+            var sw = System.Diagnostics.Stopwatch.StartNew();
+            var reqThrottle = new HttpRequestMessage(HttpMethod.Get, $"{server.Url}payload.bin");
+            reqThrottle.Headers.Range = new RangeHeaderValue(0, 256 * 1024 - 1); // 256 KB
+            using var respThrottle = await http.SendAsync(reqThrottle);
+            var throttledBytes = await respThrottle.Content.ReadAsByteArrayAsync();
+            sw.Stop();
+            Assert.Equal(256 * 1024, throttledBytes.Length);
+            Assert.True(sw.ElapsedMilliseconds >= 50, $"Expected throttled transfer, took {sw.ElapsedMilliseconds} ms");
+
+            // 5. Offline simulation fails closed
+            server.Offline = true;
+            await Assert.ThrowsAnyAsync<Exception>(async () =>
+            {
+                await http.GetByteArrayAsync($"{server.Url}payload.bin");
+            });
+
+            // 6. Recovery when offline cleared
+            server.Offline = false;
+            var recovered = await http.GetByteArrayAsync($"{server.Url}payload.bin");
+            Assert.Equal(512 * 1024, recovered.Length);
+        }
+        finally
+        {
+            try { tempRoot.Delete(recursive: true); } catch { }
+        }
     }
 }

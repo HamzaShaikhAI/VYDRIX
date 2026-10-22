@@ -23,11 +23,12 @@ public sealed class AppPaths
     /// <summary>
     /// Checks for a legacy CloudPlayX directory and migrates settings, keys, and database to Vydrix without data loss.
     /// </summary>
-    public static void MigrateLegacyIfPresent(string destinationRoot)
+    public static void MigrateLegacyIfPresent(string destinationRoot, string? customLegacyRoot = null)
     {
         try
         {
-            var legacyRoot = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "CloudPlayX");
+            var legacyRoot = customLegacyRoot
+                             ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "CloudPlayX");
             if (!Directory.Exists(legacyRoot)) return;
 
             // If the destination already has a settings or database file, avoid overwriting
