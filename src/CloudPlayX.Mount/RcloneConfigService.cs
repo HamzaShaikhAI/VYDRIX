@@ -265,7 +265,7 @@ public sealed class GoogleSetupException(string message, string fixUrl, string f
             var m = System.Text.RegularExpressions.Regex.Match(error, @"project[= ](\d+)");
             var url = "https://console.developers.google.com/apis/api/drive.googleapis.com/overview" + (m.Success ? "?project=" + m.Groups[1].Value : "");
             return new GoogleSetupException(
-                "Almost done: the Google Drive API is switched off in your Google project. Click “Enable Google Drive API”, press Enable on Google's page, wait about a minute, then sign in again.",
+                "Almost done: the Google Drive API is switched off in your Google project. Click 'Enable Google Drive API', press Enable on Google's page, wait about a minute, then sign in again.",
                 url, "Enable Google Drive API");
         }
         return null;
