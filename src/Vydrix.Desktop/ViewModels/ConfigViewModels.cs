@@ -46,6 +46,12 @@ public sealed partial class SmartCacheViewModel : PageViewModel
     [ObservableProperty] private bool _isSelfTestRunning;
     [ObservableProperty] private bool _memoryHotCacheEnabled;
     [ObservableProperty] private string _memoryCacheUsageText = "Disabled (0 B / 64 MiB)";
+    [ObservableProperty] private string _cGuardianStatusText = "HEALTHY";
+    [ObservableProperty] private string _cGuardianFreeSpaceText = "Calculating...";
+    [ObservableProperty] private string _cGuardianConsumptionRateText = "0.0 MB/min";
+    [ObservableProperty] private string _cGuardianRelocationText = "None detected";
+    [ObservableProperty] private string _cGuardianBreakdownText = "";
+    [ObservableProperty] private string _ollamaVaultStatusText = "Ollama: Auto-configured";
     [ObservableProperty] private bool _purgeCacheOnExit;
     [ObservableProperty] private bool _lowSpaceAdaptiveMode = true;
     [ObservableProperty] private bool _autoReclaimOnGameExit = true;
@@ -137,8 +143,18 @@ public sealed partial class SmartCacheViewModel : PageViewModel
                 ? $"{ByteSize.Format(Host.CacheManager.HotMemoryCache.CurrentBytes)} / {ByteSize.Format(Host.CacheManager.HotMemoryCache.MaxBytes)} ({Host.CacheManager.HotMemoryCache.ItemCount} items, {Host.CacheManager.HotMemoryCache.HitRatio:P0} hit rate)"
                 : "Disabled (0 B / 64 MiB)";
 
+            var cStatus = Host.CGuardian.CheckStatus("C");
+            CGuardianStatusText = cStatus.IsCritical ? "CRITICAL ALERT" : cStatus.IsWarning ? "WARNING (Low Space)" : "HEALTHY (Safe)";
+            CGuardianFreeSpaceText = $"{ByteSize.Format(cStatus.FreeSpaceBytes)} free ({cStatus.FreePercent:F1}%)";
+            CGuardianConsumptionRateText = $"{cStatus.ConsumptionRateMBPerMin:F1} MB/min";
+            CGuardianRelocationText = cStatus.RelocationOpportunities.Count > 0 ? cStatus.RelocationOpportunities[0] : "None detected";
+            CGuardianBreakdownText = string.Join(", ", cStatus.TopConsumers.Take(3).Select(c => $"{c.Name}: {ByteSize.Format(c.SizeBytes)}"));
+
             var isZf = Host.Settings.Cache.ZeroFootprintMode;
             Usage.ReplaceWith([
+                new("C: Guardian Status", $"{CGuardianStatusText} · {CGuardianFreeSpaceText}", cStatus.IsCritical ? "error" : cStatus.IsWarning ? "warn" : "ok"),
+                new("C: Consumption Rate", CGuardianConsumptionRateText, cStatus.ConsumptionRateMBPerMin > 100 ? "warn" : "muted"),
+                new("C: Secondary Relocation", CGuardianRelocationText, "accent"),
                 new("Phantom Pulse Mode", PulseModeText, "ok"),
                 new("Latency Shield Status", $"{Host.LatencyShield.CurrentAverageRttMs:F0}ms RTT · {Host.LatencyShield.Concurrency} streams", "accent"),
                 new("Tier A Hot Memory Cache", MemoryCacheUsageText, Host.CacheManager.HotMemoryCache.Enabled ? "ok" : "muted"),
@@ -413,6 +429,25 @@ public sealed partial class SmartCacheViewModel : PageViewModel
     {
         Host.Pins.Touch();
         Say($"Touched {Host.Pins.LastTouched} pinned file(s).", "ok");
+    }
+
+    [RelayCommand]
+    private void RunGuardianDryRun()
+    {
+        var dry = Host.CGuardian.GenerateDryRunCleanupReport();
+        var msg = $"=== C: GUARDIAN DRY-RUN REPORT ===\n" +
+                  $"Current VYDRIX Usage: {ByteSize.Format(dry.CurrentUsageBytes)}\n" +
+                  $"Projected Reclaimable: {ByteSize.Format(dry.ProjectedReclaimableBytes)}\n\n" +
+                  string.Join("\n", dry.RecommendedActions.Select(a => $"• {a}"));
+        Say(msg, "ok");
+    }
+
+    [RelayCommand]
+    private void ExecuteGuardianCleanup()
+    {
+        long reclaimed = Host.CGuardian.ExecuteSafeCleanup(rotateLogs: true, purgeTemp: true);
+        Say($"C: Guardian reclaimed {ByteSize.Format(reclaimed)} safely. Cloud originals, projects, and game saves are 100% untouched.", "ok");
+        _ = RefreshAsync();
     }
 }
 

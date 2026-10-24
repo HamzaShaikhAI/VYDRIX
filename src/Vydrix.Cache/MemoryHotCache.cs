@@ -199,9 +199,11 @@ public sealed class MemoryHotCache : IDisposable
         _currentBytes = 0;
     }
 
-    private void TrimToCapacity()
+    private void TrimToCapacity() => TrimToBytes(_maxBytes);
+
+    private void TrimToBytes(long targetLimit)
     {
-        while (_currentBytes > _maxBytes && _lruOrder.Last != null)
+        while (_currentBytes > targetLimit && _lruOrder.Last != null)
         {
             var oldestKey = _lruOrder.Last.Value;
             if (_entries.Remove(oldestKey, out var removed))
@@ -214,8 +216,8 @@ public sealed class MemoryHotCache : IDisposable
     }
 
     /// <summary>
-    /// Proactively monitors host memory pressure. If the system is under heavy memory load (> 85%),
-    /// Tier A automatically sheds 50% of its memory or completely purges to prevent paging.
+    /// Proactively monitors host memory pressure. If the system is under severe memory load (> 92%),
+    /// Tier A automatically sheds 50% of its stored items to relieve host memory.
     /// </summary>
     private void CheckSystemMemoryPressure()
     {
@@ -225,11 +227,10 @@ public sealed class MemoryHotCache : IDisposable
             if (memInfo.TotalAvailableMemoryBytes > 0)
             {
                 double load = (double)memInfo.MemoryLoadBytes / memInfo.TotalAvailableMemoryBytes;
-                if (load > 0.85)
+                if (load > 0.92)
                 {
-                    // High memory pressure: halve max bytes and trim
-                    _maxBytes = Math.Max(4 * ByteSize.MiB, _maxBytes / 2);
-                    TrimToCapacity();
+                    // Severe system memory load: shed down to half capacity without permanently mutating _maxBytes
+                    TrimToBytes(_maxBytes / 2);
                 }
             }
         }

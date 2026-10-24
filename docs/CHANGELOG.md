@@ -33,9 +33,19 @@ All notable changes to the VYDRIX virtual storage and game streaming engine are 
 - **Desktop UI Integration (`SmartCacheView.xaml` & `ConfigViewModels.cs`):**
   - Added Phantom SSD Intelligence Card with live workload mode badge, RAM hot cache toggle, memory usage indicator, and bottleneck recommendations.
   - Added Cloud SSD Self-Test Card with instant "Run Self-Test" execution button and performance summary.
+- **Cloud-First Computing & System Drive Protection:**
+  - Defined comprehensive 4-tier Storage Contract (`docs/STORAGE_CONTRACT.md`): Cloud-persistent data, Bounded transient cache, Relocatable workload data, and Protected system data.
+  - Built **C: Guardian Service (`CGuardianService.cs`)**: Continuous capacity and consumption rate monitoring, VYDRIX local footprint audit, secondary drive relocation detection, and critical threshold protective throttling.
+  - Built **Cloud-First Storage Broker (`CloudStorageBroker.cs`)**: Policy engine routing cache and scratch to secondary physical volumes (e.g. `D:\VydrixCache`, `D:\VydrixScratch`) or RAM, with comprehensive path capability checking.
+  - Built **Cloud Project Workspaces (`CloudWorkspaceManager.cs`)**: Pre-configured templates for Python, Node.js, .NET, Flutter, Git, and AI datasets, routing compiler outputs and package caches off `C:`.
+  - Built **AI Model Vault for Ollama (`AiModelVault.cs`)**: Manages `OLLAMA_MODELS` relocation to `G:\ai\models`, model discovery, hardware RAM/VRAM sizing, and safe migration.
+  - Enhanced **Game Vault (`GameVaultService.cs`)**: Anti-cheat triage, save-game protection, and multi-game concurrent memory pressure tracking.
+  - Built **Workload Orchestrator (`WorkloadOrchestrator.cs`)**: Unified preflight coordinator across RAM, VRAM, C: disk headroom, and cloud health.
+  - Added CLI commands: `vydrix guardian`, `vydrix workspace`, `vydrix ollama`, `vydrix preflight`.
+  - Added C: Guardian System Shield card in desktop UI (`SmartCacheView.xaml`).
 - **Verification & Testing:**
-  - Expanded test suite with `PhantomSsdEngineTests.cs` (12 new tests covering all subsystems).
-  - Total test suite expanded to **127 passing tests (100% pass rate, 0 failed, 0 skipped)**.
+  - Added `CloudFirstComputingTests.cs` covering all 14 required real-world scenarios.
+  - Total test suite expanded to **141 passing tests (100% pass rate, 0 failed, 0 skipped)**.
 
 ## [1.2.0] - 2026-10-24
 

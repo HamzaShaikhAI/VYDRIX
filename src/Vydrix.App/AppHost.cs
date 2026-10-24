@@ -104,6 +104,22 @@ public sealed class AppHost : IAsyncDisposable
             return buf;
         }, Settings.Phantom.MaxConcurrentRequests);
 
+        CGuardian = new CGuardianService(
+            Settings.CGuardian,
+            paths.DataRoot,
+            () => _activeLaunches.Values.FirstOrDefault(l => l.State == LaunchState.Running)?.Game.Name,
+            () =>
+            {
+                Engine.SetDemandOnly(true);
+                _diskPressure = true;
+            });
+
+        StorageBroker = new CloudStorageBroker(Settings.Broker, Settings.Cache);
+        Workspaces = new CloudWorkspaceManager(Path.Combine(paths.DataRoot, "workspaces.json"), Settings.Broker);
+        AiVault = new AiModelVault(Settings.Broker.OllamaModelPath);
+        GameVault = new GameVaultService();
+        Orchestrator = new WorkloadOrchestrator(CGuardian, StorageBroker, Workspaces, AiVault, GameVault, LatencyShield);
+
         Mounts.ReadObserved += PulseEngine.ObserveAccess;
         Mounts.ReadObserved += e =>
         {
@@ -161,6 +177,12 @@ public sealed class AppHost : IAsyncDisposable
     public GhostWarmUpService GhostWarmUp { get; }
     public MetadataCache MetadataCache { get; }
     public CoalescingReadPipeline ReadPipeline { get; }
+    public CGuardianService CGuardian { get; }
+    public CloudStorageBroker StorageBroker { get; }
+    public CloudWorkspaceManager Workspaces { get; }
+    public AiModelVault AiVault { get; }
+    public GameVaultService GameVault { get; }
+    public WorkloadOrchestrator Orchestrator { get; }
     public IReadOnlyList<DependencyStatus> Dependencies { get; private set; } = [];
     public IReadOnlyList<RemoteEntry> Remotes { get; private set; } = [];
     public LaunchSession? CurrentLaunch { get; private set; }

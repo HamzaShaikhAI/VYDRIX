@@ -53,6 +53,31 @@ public sealed class AppSettings
     public bool AutoReconnectDrives { get; set; } = true;
     public bool LaunchMinimizedToTray { get; set; } = false;
     public PhantomSettings Phantom { get; set; } = new();
+    public CGuardianSettings CGuardian { get; set; } = new();
+    public CloudBrokerSettings Broker { get; set; } = new();
+}
+
+public sealed class CGuardianSettings
+{
+    public bool Enabled { get; set; } = true;
+    public long WarningThresholdBytes { get; set; } = 10 * ByteSize.GiB;
+    public long CriticalThresholdBytes { get; set; } = 5 * ByteSize.GiB;
+    public double MaxConsumptionRateMBPerMin { get; set; } = 250.0;
+    public bool AutoPausePrefetchOnCritical { get; set; } = true;
+    public bool AutoHaltWarmingOnCritical { get; set; } = true;
+    public string? SecondaryDriveOverride { get; set; }
+    public int PollingIntervalSeconds { get; set; } = 30;
+}
+
+public sealed class CloudBrokerSettings
+{
+    public CachePlacementOption DefaultCachePlacement { get; set; } = CachePlacementOption.SecondaryPhysicalDrive;
+    public string? CustomCachePath { get; set; }
+    public string? CustomScratchPath { get; set; }
+    public WorkloadProfile DefaultWorkloadProfile { get; set; } = WorkloadProfile.StrictCloud;
+    public bool AllowCloudWorkspaceScratch { get; set; } = true;
+    public string OllamaModelPath { get; set; } = @"G:\ai\models";
+    public string WorkspacesRootPath { get; set; } = @"G:\workspaces";
 }
 
 public sealed class PhantomSettings

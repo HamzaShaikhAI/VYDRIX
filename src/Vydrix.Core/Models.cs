@@ -237,3 +237,140 @@ public sealed record VaultRecoveryReport(
     long OrphanedBytesReclaimed,
     IReadOnlyList<string> Details);
 
+// --- Cloud-First Storage Contract & Workload Models ---
+
+public enum StorageCategory
+{
+    CloudPersistent,
+    BoundedTransientCache,
+    RelocatableWorkload,
+    ProtectedSystem
+}
+
+public enum WorkloadType
+{
+    Game,
+    AiModel,
+    DevelopmentWorkspace,
+    Dataset
+}
+
+public enum WorkloadProfile
+{
+    StrictCloud,
+    Balanced,
+    Performance,
+    Development,
+    AiInference,
+    Manual
+}
+
+public enum CachePlacementOption
+{
+    SecondaryPhysicalDrive,
+    BoundedRam,
+    BoundedC,
+    CloudPersistent
+}
+
+public sealed record StorageConsumerItem(
+    string Name,
+    string Path,
+    long SizeBytes,
+    string Category,
+    bool IsRelocatable);
+
+public sealed record CGuardianStatus(
+    DateTime Timestamp,
+    long TotalSizeBytes,
+    long FreeSpaceBytes,
+    double FreePercent,
+    double ConsumptionRateMBPerMin,
+    bool IsWarning,
+    bool IsCritical,
+    IReadOnlyList<StorageConsumerItem> TopConsumers,
+    IReadOnlyList<string> RelocationOpportunities,
+    string? ActiveAttributedWorkload);
+
+public sealed record CGuardianDryRunReport(
+    long CurrentUsageBytes,
+    long ProjectedReclaimableBytes,
+    IReadOnlyList<string> RecommendedActions,
+    bool DestructiveActionAllowed);
+
+public sealed record WorkloadPlacementPolicy(
+    string WorkloadId,
+    WorkloadType Type,
+    string CloudSourceLocation,
+    CachePlacementOption CachePlacement,
+    string ActualCachePath,
+    long CacheBudgetBytes,
+    string ScratchLocation,
+    string BuildOutputLocation,
+    string CleanupPolicy,
+    string SupportedExecutionMode);
+
+public enum CloudWorkspaceTemplate
+{
+    Python,
+    NodeJs,
+    DotNet,
+    Flutter,
+    GitRepo,
+    AiDataset
+}
+
+public sealed record CloudWorkspaceDefinition(
+    string WorkspaceId,
+    string Name,
+    CloudWorkspaceTemplate Template,
+    string CloudPath,
+    string LocalScratchPath,
+    string BuildOutputDir,
+    DateTime CreatedAt,
+    DateTime LastAccessed);
+
+public sealed record WorkspaceHealthReport(
+    string WorkspaceId,
+    bool IsAccessible,
+    bool LockTestPassed,
+    bool WatcherSupported,
+    double LatencyMs,
+    IReadOnlyList<string> Warnings);
+
+public sealed record AiModelDefinition(
+    string ModelId,
+    string Name,
+    string Family,
+    string Quantization,
+    long ParameterCount,
+    long FileSizeBytes,
+    string CloudStoragePath,
+    long EstimatedRamRequiredBytes,
+    long EstimatedVramRequiredBytes,
+    bool FitsInHardware);
+
+public sealed record OllamaConfigStatus(
+    bool IsInstalled,
+    string? InstalledPath,
+    string? CurrentModelsPath,
+    string TargetCloudPath,
+    bool EnvironmentConfigured,
+    string RecommendedAction);
+
+public sealed record WorkloadPreflightReport(
+    DateTime Timestamp,
+    string WorkloadId,
+    WorkloadType Type,
+    WorkloadProfile Profile,
+    long AvailableRamBytes,
+    long RequiredRamBytes,
+    long AvailableVramBytes,
+    long RequiredVramBytes,
+    long CDiskFreeBytes,
+    long ProjectedCDiskImpactBytes,
+    bool CanSafelyLaunch,
+    IReadOnlyList<string> Warnings,
+    IReadOnlyList<string> Recommendations);
+
+
