@@ -24,14 +24,22 @@ public sealed partial class SmartCacheViewModel : PageViewModel
     public ObservableCollection<string> Pinned { get; } = new();
     public ObservableCollection<string> Warnings { get; } = new();
     public ObservableCollection<KeyValueRow> Usage { get; } = new();
-    public int[] Presets { get; } = [10, 20, 30, 40];
+    public double[] Presets { get; } = [0.5, 2, 5, 10, 20];
 
-    [ObservableProperty] private string _budgetGb = "20";
+    [ObservableProperty] private string _budgetGb = "5";
     [ObservableProperty] private string _reserveGb = "8";
-    [ObservableProperty] private string _maxAgeDays = "30";
+    [ObservableProperty] private string _maxAgeDays = "7";
     [ObservableProperty] private string _cacheRoot = "";
     [ObservableProperty] private string _volumeInfo = "";
     [ObservableProperty] private string _effective = "";
+    [ObservableProperty] private string _profile = "Balanced";
+    [ObservableProperty] private string _cacheMode = "Full";
+    [ObservableProperty] private bool _purgeCacheOnExit;
+    [ObservableProperty] private bool _lowSpaceAdaptiveMode = true;
+    [ObservableProperty] private bool _autoReclaimOnGameExit = true;
+    [ObservableProperty] private string _volumeValidation = "";
+    [ObservableProperty] private string _advisorFolder = "";
+    [ObservableProperty] private string _advisorSummary = "Select a local folder below to analyze potential storage reclamation.";
     [ObservableProperty] private CachedFileRow? _selectedFile;
 
     public override void OnShown()
@@ -41,6 +49,11 @@ public sealed partial class SmartCacheViewModel : PageViewModel
         ReserveGb = (c.MinFreeSpaceBytes / (double)ByteSize.GiB).ToString("0.#", CultureInfo.InvariantCulture);
         MaxAgeDays = c.MaxAge.TotalDays.ToString("0", CultureInfo.InvariantCulture);
         CacheRoot = Host.Paths.CacheRootFor(Host.Settings);
+        Profile = c.Profile.ToString();
+        CacheMode = c.CacheMode.ToString();
+        PurgeCacheOnExit = c.PurgeCacheOnExit;
+        LowSpaceAdaptiveMode = c.LowSpaceAdaptiveMode;
+        AutoReclaimOnGameExit = c.AutoReclaimOnGameExit;
         Pinned.ReplaceWith(c.PinnedPaths);
         _ = RefreshAsync();
     }
@@ -83,17 +96,29 @@ public sealed partial class SmartCacheViewModel : PageViewModel
             Warnings.ReplaceWith(decision.Warnings.Append(
                 "rclone's size limit is not an instantaneous quota: files that are open are never evicted and cleanup runs every " +
                 $"{Host.Settings.Cache.PollInterval.TotalSeconds:0} s, so usage can briefly exceed it. VYDRIX keeps a {DiskSafetyGuard.OverrunMargin:P0} margin and pauses its own prefetching under disk pressure."));
+            var networkBytes = Host.Metrics.Latest.TotalBytesTransferred ?? 0;
+            var hitRatio = Host.Metrics.Latest.HitRate ?? 0.0;
+            var stats = Host.CacheManager.GetStorageEfficiencyStats(
+                networkBytes,
+                hitRatio,
+                usage.logical);
+
             Usage.ReplaceWith([
-                new("On disk (physical)", ByteSize.Format(usage.phys)),
-                new("Downloaded ranges", ByteSize.Format(usage.cached)),
-                new("Logical size of cached files", ByteSize.Format(usage.logical)),
+                new("Storage Profile", Profile),
+                new("Physical on disk", ByteSize.Format(stats.PhysicalAllocatedBytes)),
+                new("Avoided storage (saved)", ByteSize.Format(stats.AvoidedStorageBytes), "ok"),
+                new("Cache hit ratio", $"{stats.CacheHitRatio:P1}"),
+                new("Persistent cached blocks", ByteSize.Format(stats.PersistentCacheBytes)),
+                new("Transient cached blocks", ByteSize.Format(stats.TransientCacheBytes)),
+                new("Protected (in-use / dirty)", ByteSize.Format(stats.ProtectedBytes)),
+                new("Low-space mode status", stats.LowSpaceActive ? "ACTIVE (scaling down budget)" : "Normal (healthy reserve)", stats.LowSpaceActive ? "warn" : "muted"),
+                new("Volume filesystem", stats.CacheVolumeFileSystem),
                 new("Files with pending uploads", usage.dirty.ToString(), usage.dirty > 0 ? "warn" : "muted"),
-                new("Space saved vs full files", usage.logical > 0 ? $"{1 - usage.phys / (double)Math.Max(1, usage.logical):P0}" : "â€”"),
             ]);
         });
     }
 
-    [RelayCommand] private void Preset(int gb) => BudgetGb = gb.ToString(CultureInfo.InvariantCulture);
+    [RelayCommand] private void Preset(double gb) => BudgetGb = gb.ToString(CultureInfo.InvariantCulture);
 
     [RelayCommand]
     private void ChooseLocation()
@@ -127,6 +152,20 @@ public sealed partial class SmartCacheViewModel : PageViewModel
             if (!sparse && !Confirm($"The selected drive uses {fs} without sparse-file support; partially downloaded files will occupy their full size. Use it anyway?")) return;
             c.CacheRoot = newRoot;
         }
+        if (Enum.TryParse<CachePolicyProfile>(Profile, true, out var prof)) c.Profile = prof;
+        if (Enum.TryParse<VfsCacheMode>(CacheMode, true, out var cm)) c.CacheMode = cm;
+        c.PurgeCacheOnExit = PurgeCacheOnExit;
+        c.LowSpaceAdaptiveMode = LowSpaceAdaptiveMode;
+        c.AutoReclaimOnGameExit = AutoReclaimOnGameExit;
+
+        // Validate volume
+        var validation = VolumeValidator.Validate(newRoot, (long)(b * ByteSize.GiB), (long)(r * ByteSize.GiB));
+        if (!validation.IsValid)
+        {
+            Say($"Volume validation failed: {string.Join("; ", validation.Errors)}", "error");
+            return;
+        }
+
         c.BudgetBytes = (long)(b * ByteSize.GiB);
         c.MinFreeSpaceBytes = (long)(r * ByteSize.GiB);
         c.MaxAge = TimeSpan.FromDays(age);
@@ -187,6 +226,69 @@ public sealed partial class SmartCacheViewModel : PageViewModel
             var report = await Host.CacheManager.RunMaintenanceAsync(force: true, trigger: "manual");
             await RefreshAsync();
             Say($"Maintenance finished: {report.Reason}. Reclaimed: {ByteSize.Format(report.BytesReclaimed)} across {report.FilesEvicted} file(s).", "ok");
+        });
+    }
+
+    [RelayCommand]
+    private async Task MigrateCacheLocation()
+    {
+        var oldRoot = Host.Paths.CacheRootFor(Host.Settings);
+        var newRoot = CacheRoot.Trim();
+
+        if (string.Equals(oldRoot, newRoot, StringComparison.OrdinalIgnoreCase))
+        {
+            Say("Source and destination cache folders are identical.", "warn");
+            return;
+        }
+
+        if (Host.Mounts.Sessions.Count > 0)
+        {
+            Say("Please unmount all drives before running cache migration.", "warn");
+            return;
+        }
+
+        if (!Confirm($"Migrate VFS cache from {oldRoot} to {newRoot}?\n\nA verified staged copy will be performed with automatic rollback if interrupted.")) return;
+
+        await RunAsync(async () =>
+        {
+            var progress = new Progress<string>(s => Say(s, "ok"));
+            var res = await Host.MigrationService.MigrateAsync(oldRoot, newRoot, Host.Settings, Host.SettingsStore, () => Host.Mounts.Sessions.Count > 0, progress);
+            if (res.Success)
+            {
+                Say(res.Message, "ok");
+                await RefreshAsync();
+            }
+            else
+            {
+                Say(res.Message, "error");
+            }
+        });
+    }
+
+    [RelayCommand]
+    private void ChooseAdvisorFolder()
+    {
+        var d = new OpenFolderDialog { Title = "Select a game or data directory to analyze for storage reclamation" };
+        if (d.ShowDialog() == true) AdvisorFolder = d.FolderName;
+    }
+
+    [RelayCommand]
+    private async Task RunStorageAdvisorScan()
+    {
+        if (string.IsNullOrWhiteSpace(AdvisorFolder) || !Directory.Exists(AdvisorFolder))
+        {
+            Say("Please select an existing folder to analyze.", "warn");
+            return;
+        }
+
+        await RunAsync(async () =>
+        {
+            var res = await Host.StorageAdvisor.ScanSelectedDirectoryAsync(AdvisorFolder);
+            AdvisorSummary = $"Scanned {res.TotalFiles} files ({ByteSize.Format(res.TotalSizeBytes)}).\n" +
+                             $"Eligible for cloud streaming: {ByteSize.Format(res.EligibleBytes)} ({res.EligibleItems.Count} files).\n" +
+                             $"Must remain local: {ByteSize.Format(res.IneligibleBytes)} ({res.IneligibleItems.Count} files).\n\n" +
+                             string.Join("\n", res.Recommendations);
+            Say($"Storage analysis completed. Found {ByteSize.Format(res.EligibleBytes)} of potential storage savings.", "ok");
         });
     }
 

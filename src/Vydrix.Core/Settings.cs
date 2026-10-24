@@ -3,6 +3,36 @@ using System.Text.Json.Serialization;
 
 namespace Vydrix.Core;
 
+public enum CachePolicyProfile
+{
+    /// <summary>512 MiB conservative hard cap with aggressive eviction and transient caching.</summary>
+    Minimal,
+
+    /// <summary>Standard balanced budget (default: 5 GiB) suitable for modern gaming.</summary>
+    Balanced,
+
+    /// <summary>User-configured budget, custom cache path, and free-space reserve.</summary>
+    Custom,
+
+    /// <summary>Disk cache disabled entirely (--vfs-cache-mode off); stream directly into RAM.</summary>
+    Disabled
+}
+
+public enum VfsCacheMode
+{
+    /// <summary>Full sparse caching on disk. Required for memory-mapped binaries and random seeks.</summary>
+    Full,
+
+    /// <summary>Only files opened for write are cached to disk; reads stream directly.</summary>
+    Minimal,
+
+    /// <summary>Files opened with write intent are cached to disk.</summary>
+    Writes,
+
+    /// <summary>Zero disk cache: all reads stream into RAM buffer. Memory-mapped executables unsupported.</summary>
+    Off
+}
+
 public sealed class AppSettings
 {
     public int SchemaVersion { get; set; } = 1;
@@ -23,17 +53,23 @@ public sealed class AppSettings
 
 public sealed class CacheSettings
 {
+    /// <summary>Current storage policy profile.</summary>
+    public CachePolicyProfile Profile { get; set; } = CachePolicyProfile.Balanced;
+
+    /// <summary>rclone --vfs-cache-mode setting (Full, Minimal, Writes, Off).</summary>
+    public VfsCacheMode CacheMode { get; set; } = VfsCacheMode.Full;
+
     /// <summary>Root directory for rclone VFS caches. Each mount gets its own subdirectory.</summary>
     public string? CacheRoot { get; set; }
 
     /// <summary>Total physical disk budget for all mount caches.</summary>
-    public long BudgetBytes { get; set; } = 20 * ByteSize.GiB;
+    public long BudgetBytes { get; set; } = 5 * ByteSize.GiB;
 
     /// <summary>Free space that must always remain on the cache volume for Windows.</summary>
     public long MinFreeSpaceBytes { get; set; } = 8 * ByteSize.GiB;
 
     /// <summary>How long unused cached data may stay before rclone evicts it.</summary>
-    public TimeSpan MaxAge { get; set; } = TimeSpan.FromDays(30);
+    public TimeSpan MaxAge { get; set; } = TimeSpan.FromDays(7);
 
     public TimeSpan PollInterval { get; set; } = TimeSpan.FromSeconds(30);
 
@@ -42,6 +78,15 @@ public sealed class CacheSettings
 
     /// <summary>Enable automatic periodic cache cleanup based on budget and reserve.</summary>
     public bool AutoMaintenanceEnabled { get; set; } = true;
+
+    /// <summary>Automatically purge local cache data on application shutdown or drive unmount.</summary>
+    public bool PurgeCacheOnExit { get; set; } = false;
+
+    /// <summary>Automatically reclaim transient game cache when the monitored game process tree exits.</summary>
+    public bool AutoReclaimOnGameExit { get; set; } = true;
+
+    /// <summary>Low-space mode: dynamically reduce cache budget as volume free space declines.</summary>
+    public bool LowSpaceAdaptiveMode { get; set; } = true;
 
     /// <summary>
     /// rclone --buffer-size. In full cache mode rclone reads buffer-size + read-ahead past every read position.
@@ -59,6 +104,23 @@ public sealed class CacheSettings
     public TimeSpan WriteBack { get; set; } = TimeSpan.FromSeconds(5);
 
     public List<string> PinnedPaths { get; set; } = new();
+
+    /// <summary>Computes the effective budget for the active profile.</summary>
+    public long EffectiveBudgetForProfile() => Profile switch
+    {
+        CachePolicyProfile.Minimal => 512 * ByteSize.MiB,
+        CachePolicyProfile.Disabled => 0,
+        CachePolicyProfile.Balanced => BudgetBytes > 0 ? BudgetBytes : 5 * ByteSize.GiB,
+        _ => BudgetBytes
+    };
+
+    /// <summary>Computes the effective max age for the active profile.</summary>
+    public TimeSpan EffectiveMaxAgeForProfile() => Profile switch
+    {
+        CachePolicyProfile.Minimal => TimeSpan.FromHours(1),
+        CachePolicyProfile.Disabled => TimeSpan.Zero,
+        _ => MaxAge
+    };
 }
 
 public sealed class NetworkSettings
@@ -132,6 +194,20 @@ public sealed class MountDefinition
 
     [JsonIgnore] public string RemoteSpec => string.IsNullOrEmpty(RemotePath) ? RemoteName + ":" : $"{RemoteName}:{RemotePath.TrimStart('/')}";
 }
+
+public sealed record StorageEfficiencyStats(
+    long PhysicalAllocatedBytes,
+    long LogicalAccessedBytes,
+    long AvoidedStorageBytes,
+    long NetworkBytesDownloaded,
+    double CacheHitRatio,
+    long PersistentCacheBytes,
+    long TransientCacheBytes,
+    long ProtectedBytes,
+    long VolumeFreeBytes,
+    long VolumeReserveBytes,
+    string CacheVolumeFileSystem,
+    bool LowSpaceActive);
 
 public interface ISettingsStore
 {

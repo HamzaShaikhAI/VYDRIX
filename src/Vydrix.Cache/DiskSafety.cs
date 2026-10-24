@@ -1,3 +1,7 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
 using Vydrix.Core;
 
 namespace Vydrix.Cache;
@@ -21,27 +25,52 @@ public sealed record CacheBudgetDecision(
 /// rclone's --vfs-cache-max-size is not an instantaneous quota: open files are never evicted and cleanup runs every
 /// poll interval, so the cache can temporarily exceed it. The guard therefore keeps an overrun margin below the free
 /// space reserve and pauses VYDRIX's own prefetching under disk pressure.
+/// Includes Low-Space Adaptive Mode to dynamically compress cache allocation when volume free space declines.
 /// </summary>
 public static class DiskSafetyGuard
 {
     /// <summary>Fraction of the budget assumed as possible transient overrun (open files + poll delay).</summary>
     public const double OverrunMargin = 0.10;
 
-    public static readonly long[] BudgetPresets = [10 * ByteSize.GiB, 20 * ByteSize.GiB, 30 * ByteSize.GiB, 40 * ByteSize.GiB];
+    public static readonly long[] BudgetPresets = [
+        512 * ByteSize.MiB,
+        2 * ByteSize.GiB,
+        5 * ByteSize.GiB,
+        10 * ByteSize.GiB,
+        20 * ByteSize.GiB
+    ];
 
-    public static CacheBudgetDecision Decide(long requestedBudget, long reserve, long volumeFree, long currentCacheBytes, int mountCount = 1)
+    public static CacheBudgetDecision Decide(
+        long requestedBudget,
+        long reserve,
+        long volumeFree,
+        long currentCacheBytes,
+        int mountCount = 1,
+        bool lowSpaceAdaptive = true)
     {
         var warnings = new List<string>();
         mountCount = Math.Max(1, mountCount);
+
+        // Low-space adaptive mode: if volume free space approaches the reserve, dynamically shrink budget
+        var effectiveRequested = requestedBudget;
+        var adaptiveActive = false;
+        if (lowSpaceAdaptive && volumeFree < reserve * 2)
+        {
+            var freeAboveReserve = Math.Max(0, volumeFree - reserve);
+            effectiveRequested = Math.Min(requestedBudget, Math.Max(128 * ByteSize.MiB, freeAboveReserve));
+            adaptiveActive = true;
+            warnings.Add($"Low-space mode active: cache budget dynamically scaled to {ByteSize.Format(effectiveRequested)} to protect Windows system free space.");
+        }
+
         // Space rclone may use = what it already occupies + what is free beyond the reserve.
         var available = Math.Max(0, currentCacheBytes + volumeFree - reserve);
         var safeTotal = (long)(available / (1 + OverrunMargin));
-        var total = Math.Min(requestedBudget, safeTotal);
+        var total = Math.Min(effectiveRequested, safeTotal);
         var perMount = total / mountCount;
-        if (total < requestedBudget)
+        if (total < requestedBudget && !adaptiveActive)
             warnings.Add($"Cache budget reduced from {ByteSize.Format(requestedBudget)} to {ByteSize.Format(total)} to keep {ByteSize.Format(reserve)} free for Windows.");
-        if (perMount < ByteSize.GiB)
-            warnings.Add($"Only {ByteSize.Format(perMount)} of cache space is available per drive; most games will need far more. Free up space or move the cache.");
+        if (perMount < 512 * ByteSize.MiB)
+            warnings.Add($"Only {ByteSize.Format(perMount)} of cache space is available per drive. Games may experience cache eviction churn; consider moving the cache.");
         var pressure = Pressure(volumeFree, reserve);
         if (pressure != DiskPressure.Normal)
             warnings.Add(pressure == DiskPressure.Critical

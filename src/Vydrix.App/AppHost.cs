@@ -46,6 +46,9 @@ public sealed class AppHost : IAsyncDisposable
         Installer = new FullLocalInstaller(RcloneConfig);
         Metrics = new MetricsCollector(this);
         Pins = new PinKeeper(PinnedTargets);
+        MigrationService = new CacheMigrationService(LoggerFactory.CreateLogger<CacheMigrationService>());
+        StorageAdvisor = new StorageReclamationAdvisor(LoggerFactory.CreateLogger<StorageReclamationAdvisor>());
+
         CacheManager = new SmartCacheManager(
             paths.CacheRootFor(Settings),
             Settings.Cache,
@@ -53,6 +56,32 @@ public sealed class AppHost : IAsyncDisposable
             id => Mounts.Get(id)?.State == MountState.Mounted,
             path => CurrentLaunch?.Game != null && (string.IsNullOrEmpty(CurrentLaunch.Game.RootPath) || path.Contains(CurrentLaunch.Game.RootPath, StringComparison.OrdinalIgnoreCase)),
             () => Settings.Cache.PinnedPaths,
+            async (mountId, targetBudget) =>
+            {
+                if (Mounts.Get(mountId)?.Rc is { } rc)
+                {
+                    await rc.SetVfsOptionsAsync(cacheMaxSize: targetBudget);
+                    return true;
+                }
+                return false;
+            },
+            async (mountId, remotePath) =>
+            {
+                if (Mounts.Get(mountId)?.Rc is { } rc)
+                {
+                    await rc.VfsForgetAsync(file: remotePath);
+                    return true;
+                }
+                return false;
+            },
+            async mountId =>
+            {
+                if (Mounts.Get(mountId)?.Rc is { } rc)
+                {
+                    return await rc.GetPendingUploadsCountAsync();
+                }
+                return 0;
+            },
             LoggerFactory.CreateLogger<SmartCacheManager>());
 
         Mounts.ReadObserved += Engine.OnAccess;
@@ -94,6 +123,8 @@ public sealed class AppHost : IAsyncDisposable
     public MetricsCollector Metrics { get; }
     public PinKeeper Pins { get; }
     public SmartCacheManager CacheManager { get; }
+    public CacheMigrationService MigrationService { get; }
+    public StorageReclamationAdvisor StorageAdvisor { get; }
     public IReadOnlyList<DependencyStatus> Dependencies { get; private set; } = [];
     public IReadOnlyList<RemoteEntry> Remotes { get; private set; } = [];
     public LaunchSession? CurrentLaunch { get; private set; }
@@ -368,6 +399,12 @@ public sealed class AppHost : IAsyncDisposable
         Library.Save(fresh);
         _log.Log(d.LikelyFailure ? LogLevel.Warning : LogLevel.Information, "{Game} exited: {Result}", g.Name, fresh.LastLaunchResult);
         StateChanged?.Invoke();
+
+        if (Settings.Cache.AutoReclaimOnGameExit && !string.IsNullOrEmpty(g.RootPath))
+        {
+            _log.LogInformation("Game {Name} exited; triggering safe transient cache reclamation for {Root}", g.Name, g.RootPath);
+            _ = CacheManager.ReclaimGameCacheAsync(g.RootPath);
+        }
     }
 
     private void StartGameAware(GameEntry g, GameSession session)
@@ -398,6 +435,12 @@ public sealed class AppHost : IAsyncDisposable
         {
             await Mounts.UnmountAllAsync(TimeSpan.FromSeconds(60));
             _log.LogInformation("Exiting; all drives unmounted");
+
+            if (Settings.Cache.PurgeCacheOnExit)
+            {
+                _log.LogInformation("PurgeCacheOnExit enabled; purging local VFS cache data");
+                try { await CacheManager.PurgeAllCachesAsync(); } catch (Exception ex) { _log.LogWarning(ex, "Failed to purge cache on exit"); }
+            }
         }
     }
 

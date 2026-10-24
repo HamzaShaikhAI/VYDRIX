@@ -64,6 +64,42 @@ public sealed class RcClient : IDisposable
         }
     }
 
+    public async Task<VfsStats> GetVfsStatsAsync(string? fs = null, CancellationToken ct = default)
+    {
+        var node = await CallAsync("vfs/stats", fs != null ? new { fs } : null, ct);
+        return VfsStats.Parse(node);
+    }
+
+    public async Task SetVfsOptionsAsync(long? cacheMaxSize = null, TimeSpan? cacheMaxAge = null, long? minFreeSpace = null, CancellationToken ct = default)
+    {
+        var vfs = new JsonObject();
+        if (cacheMaxSize.HasValue) vfs["CacheMaxSize"] = cacheMaxSize.Value;
+        if (cacheMaxAge.HasValue) vfs["CacheMaxAge"] = (long)(cacheMaxAge.Value.TotalMilliseconds * 1_000_000); // rclone nanoseconds
+        if (minFreeSpace.HasValue) vfs["CacheMinFreeSpace"] = minFreeSpace.Value;
+
+        var options = new JsonObject { ["vfs"] = vfs };
+        await CallAsync("options/set", options, ct);
+    }
+
+    public async Task VfsForgetAsync(string? file = null, string? dir = null, CancellationToken ct = default)
+    {
+        object? param = file != null ? new { file } : (dir != null ? new { dir } : null);
+        await CallAsync("vfs/forget", param, ct);
+    }
+
+    public async Task<int> GetPendingUploadsCountAsync(CancellationToken ct = default)
+    {
+        try
+        {
+            var stats = await GetVfsStatsAsync(ct: ct);
+            return stats.UploadsInProgress + stats.UploadsQueued;
+        }
+        catch
+        {
+            return 0;
+        }
+    }
+
     public static int FindFreeLoopbackPort()
     {
         var l = new TcpListener(System.Net.IPAddress.Loopback, 0);

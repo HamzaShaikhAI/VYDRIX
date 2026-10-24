@@ -71,17 +71,38 @@ public static class MountFlagBuilder
             if (value != null) a.Add(value);
         }
 
-        Flag("vfs-cache-mode", "full");
-        Flag("cache-dir", i.CacheDir);
-        Flag("vfs-cache-max-size", ByteSize.ToRclone(Math.Max(16 * ByteSize.MiB, i.EffectiveCacheMaxBytes)));
-        if (i.Cache.MinFreeSpaceBytes > 0) Flag("vfs-cache-min-free-space", ByteSize.ToRclone(i.Cache.MinFreeSpaceBytes));
-        Flag("vfs-cache-max-age", Dur(i.Cache.MaxAge));
-        Flag("vfs-cache-poll-interval", Dur(i.Cache.PollInterval));
+        // Cache mode mapping based on Storage Profile and CacheMode
+        var cacheMode = i.Cache.Profile == CachePolicyProfile.Disabled
+            ? "off"
+            : i.Cache.CacheMode switch
+            {
+                VfsCacheMode.Off => "off",
+                VfsCacheMode.Minimal => "minimal",
+                VfsCacheMode.Writes => "writes",
+                _ => "full"
+            };
+
+        Flag("vfs-cache-mode", cacheMode);
+
+        if (cacheMode != "off")
+        {
+            Flag("cache-dir", i.CacheDir);
+
+            var effectiveMax = i.Cache.Profile == CachePolicyProfile.Minimal
+                ? 512 * ByteSize.MiB
+                : Math.Max(16 * ByteSize.MiB, i.EffectiveCacheMaxBytes);
+
+            Flag("vfs-cache-max-size", ByteSize.ToRclone(effectiveMax));
+            if (i.Cache.MinFreeSpaceBytes > 0) Flag("vfs-cache-min-free-space", ByteSize.ToRclone(i.Cache.MinFreeSpaceBytes));
+            Flag("vfs-cache-max-age", Dur(i.Cache.EffectiveMaxAgeForProfile()));
+            Flag("vfs-cache-poll-interval", Dur(i.Cache.Profile == CachePolicyProfile.Minimal ? TimeSpan.FromSeconds(15) : i.Cache.PollInterval));
+            Flag("vfs-read-ahead", ByteSize.ToRclone(i.Cache.ReadAheadBytes));
+            Flag("vfs-read-chunk-size", ByteSize.ToRclone(i.Cache.ReadChunkSizeBytes));
+            if (i.Cache.ReadChunkStreams > 0) Flag("vfs-read-chunk-streams", i.Cache.ReadChunkStreams.ToString(CultureInfo.InvariantCulture));
+            Flag("vfs-write-back", Dur(i.Cache.WriteBack));
+        }
+
         Flag("buffer-size", ByteSize.ToRclone(i.Cache.BufferSizeBytes));
-        Flag("vfs-read-ahead", ByteSize.ToRclone(i.Cache.ReadAheadBytes));
-        Flag("vfs-read-chunk-size", ByteSize.ToRclone(i.Cache.ReadChunkSizeBytes));
-        if (i.Cache.ReadChunkStreams > 0) Flag("vfs-read-chunk-streams", i.Cache.ReadChunkStreams.ToString(CultureInfo.InvariantCulture));
-        Flag("vfs-write-back", Dur(i.Cache.WriteBack));
         Flag("dir-cache-time", "30m");
         // Executables need the execute bit in the WinFsp ACL mapping; default 0666 makes CreateProcess fail with
         // "Access is denied" (verified on rclone 1.75.2 / WinFsp 2025).
@@ -99,7 +120,9 @@ public static class MountFlagBuilder
         Flag("rc-addr", $"127.0.0.1:{i.RcPort}");
         Flag("log-file", i.LogFile);
         Flag("log-format", "date,time,microseconds");
-        if (rclone.Supports("log-file-max-size")) { Flag("log-file-max-size", "64Mi"); Flag("log-file-max-backups", "2"); }
+
+        // Protect primary OS drive: limit log file size to 8Mi with 1 backup
+        if (rclone.Supports("log-file-max-size")) { Flag("log-file-max-size", "8Mi"); Flag("log-file-max-backups", "1"); }
         a.Add(i.Telemetry ? "-vv" : "-v");
 
         foreach (var (k, v) in i.Mount.ExtraFlags)

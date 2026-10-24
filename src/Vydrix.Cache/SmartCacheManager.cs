@@ -25,10 +25,11 @@ public sealed record MaintenanceReport(
     IReadOnlyList<string> Details);
 
 /// <summary>
-/// Manages the smart lifecycle of local VFS cache data on SSD.
+/// Manages the smart lifecycle of local VFS cache data on SSD/NTFS volumes.
 /// Executes lightweight background checks every 1-2 hours without expensive disk scans
 /// when storage is healthy, safely evicts LRU files when budget or reserve thresholds are
 /// breached, and strictly protects pinned, dirty, locked, and active game session files.
+/// Integrates with rclone RC remote control for live mounts, preventing out-of-band disk corruption.
 /// </summary>
 public sealed class SmartCacheManager : IDisposable
 {
@@ -38,6 +39,9 @@ public sealed class SmartCacheManager : IDisposable
     private readonly Func<string, bool> _isMountActive;
     private readonly Func<string, bool> _isGameActive;
     private readonly Func<IReadOnlyList<string>> _pinnedPathsProvider;
+    private readonly Func<string, long, Task<bool>>? _rcEvictionHandler;
+    private readonly Func<string, string, Task<bool>>? _rcForgetHandler;
+    private readonly Func<string, Task<int>>? _rcPendingUploadsHandler;
     private readonly ILogger? _logger;
     private readonly Timer? _timer;
     private readonly object _sync = new();
@@ -50,6 +54,9 @@ public sealed class SmartCacheManager : IDisposable
         Func<string, bool>? isMountActive = null,
         Func<string, bool>? isGameActive = null,
         Func<IReadOnlyList<string>>? pinnedPathsProvider = null,
+        Func<string, long, Task<bool>>? rcEvictionHandler = null,
+        Func<string, string, Task<bool>>? rcForgetHandler = null,
+        Func<string, Task<int>>? rcPendingUploadsHandler = null,
         ILogger? logger = null)
     {
         _cacheRoot = Path.GetFullPath(cacheRoot);
@@ -58,6 +65,9 @@ public sealed class SmartCacheManager : IDisposable
         _isMountActive = isMountActive ?? (_ => false);
         _isGameActive = isGameActive ?? (_ => false);
         _pinnedPathsProvider = pinnedPathsProvider ?? (() => _settings.PinnedPaths);
+        _rcEvictionHandler = rcEvictionHandler;
+        _rcForgetHandler = rcForgetHandler;
+        _rcPendingUploadsHandler = rcPendingUploadsHandler;
         _logger = logger;
 
         if (_settings.AutoMaintenanceEnabled && _settings.MaintenanceInterval > TimeSpan.Zero)
@@ -68,6 +78,8 @@ public sealed class SmartCacheManager : IDisposable
 
     public MaintenanceReport? LastReport { get; private set; }
     public event Action<MaintenanceReport>? MaintenanceCompleted;
+    public bool IsCapacityExhausted { get; private set; }
+    public string? CapacityExhaustionMessage { get; private set; }
 
     private void OnTimerTick(object? state)
     {
@@ -81,13 +93,14 @@ public sealed class SmartCacheManager : IDisposable
     /// </summary>
     public async Task<MaintenanceReport> RunMaintenanceAsync(bool force = false, string trigger = "manual", CancellationToken ct = default)
     {
-        return await Task.Run(() =>
+        return await Task.Run(async () =>
         {
+            DateTime timestamp;
+            var details = new List<string>();
+
             lock (_sync)
             {
-                var timestamp = DateTime.Now;
-                var details = new List<string>();
-
+                timestamp = DateTime.Now;
                 if (!Directory.Exists(_cacheRoot))
                 {
                     var emptyReport = new MaintenanceReport(
@@ -96,48 +109,270 @@ public sealed class SmartCacheManager : IDisposable
                     MaintenanceCompleted?.Invoke(emptyReport);
                     return emptyReport;
                 }
+            }
 
-                var (volumeFree, volumeTotal) = DiskInfo.FreeSpace(_cacheRoot);
-                var reserve = _settings.MinFreeSpaceBytes;
-                var budget = _settings.BudgetBytes;
+            var (volumeFree, volumeTotal) = DiskInfo.FreeSpace(_cacheRoot);
+            var reserve = _settings.MinFreeSpaceBytes;
+            var budget = _settings.EffectiveBudgetForProfile();
 
-                // 1. Lightweight pre-check: if free space is comfortable and not forced, check quick metrics
-                bool underDiskPressure = volumeFree < reserve;
-                if (!force && !underDiskPressure)
+            // 1. Lightweight pre-check: if free space is comfortable and not forced, check quick metrics
+            bool underDiskPressure = volumeFree < reserve;
+            if (!force && !underDiskPressure)
+            {
+                var quickUsage = MeasureCurrentPhysicalBytes();
+                if (quickUsage <= budget)
                 {
-                    // Check if volume free space is safe and no urgent disk pressure exists
-                    // Let's do a fast measurement of current cache folders
-                    var quickUsage = MeasureCurrentPhysicalBytes();
-                    if (quickUsage <= budget)
-                    {
-                        var skippedReport = new MaintenanceReport(
-                            timestamp,
-                            false,
-                            $"Lightweight check: free space ({ByteSize.Format(volumeFree)}) and cache ({ByteSize.Format(quickUsage)}) within limits",
-                            0,
-                            0,
-                            quickUsage,
-                            quickUsage,
-                            volumeFree,
-                            volumeFree,
-                            [$"Trigger: {trigger}", "No eviction needed; budget and reserve satisfied."]);
+                    var skippedReport = new MaintenanceReport(
+                        timestamp,
+                        false,
+                        $"Lightweight check: free space ({ByteSize.Format(volumeFree)}) and cache ({ByteSize.Format(quickUsage)}) within limits",
+                        0,
+                        0,
+                        quickUsage,
+                        quickUsage,
+                        volumeFree,
+                        volumeFree,
+                        [$"Trigger: {trigger}", "No eviction needed; budget and reserve satisfied."]);
 
-                        _logger?.LogDebug("SmartCacheManager lightweight check passed. No eviction required.");
+                    _logger?.LogDebug("SmartCacheManager lightweight check passed. No eviction required.");
+                    lock (_sync)
+                    {
                         LastReport = skippedReport;
-                        MaintenanceCompleted?.Invoke(skippedReport);
-                        return skippedReport;
+                        IsCapacityExhausted = false;
+                        CapacityExhaustionMessage = null;
                     }
+                    MaintenanceCompleted?.Invoke(skippedReport);
+                    return skippedReport;
+                }
+            }
+
+            _logger?.LogInformation("SmartCacheManager starting cache maintenance (Trigger: {Trigger}, Free: {Free}, Reserve: {Reserve}, Budget: {Budget})",
+                trigger, ByteSize.Format(volumeFree), ByteSize.Format(reserve), ByteSize.Format(budget));
+
+            var physicalBefore = MeasureCurrentPhysicalBytes();
+            long bytesReclaimed = 0;
+            int filesEvicted = 0;
+
+            // 2. Identify candidate files across all mount caches
+            var candidateFiles = new List<EvictionCandidate>();
+            var pinnedList = _pinnedPathsProvider();
+            var mounts = _mountsProvider().ToList();
+
+            foreach (var mount in mounts)
+            {
+                var mountCacheDir = Path.Combine(_cacheRoot, "m-" + mount.Id);
+                if (!Directory.Exists(mountCacheDir)) continue;
+
+                // Verify safety marker
+                if (!File.Exists(Path.Combine(mountCacheDir, CacheMaintenance.Marker)) &&
+                    !File.Exists(Path.Combine(mountCacheDir, CacheMaintenance.LegacyMarker)))
+                {
+                    details.Add($"Skipping unmarked folder: m-{mount.Id}");
+                    continue;
                 }
 
-                _logger?.LogInformation("SmartCacheManager starting cache maintenance (Trigger: {Trigger}, Free: {Free}, Reserve: {Reserve}, Budget: {Budget})",
-                    trigger, ByteSize.Format(volumeFree), ByteSize.Format(reserve), ByteSize.Format(budget));
+                var isMounted = _isMountActive(mount.Id);
+                var enumerated = CacheInspector.Enumerate(mountCacheDir, mount.RemotePath).ToList();
 
+                foreach (var cf in enumerated)
+                {
+                    // Check protection rules:
+                    // 1. Dirty files: pending upload to cloud -> NEVER evict
+                    if (cf.Dirty)
+                    {
+                        details.Add($"Protected (dirty/pending upload): {cf.RemotePath}");
+                        continue;
+                    }
+
+                    // 2. Pinned files: user explicitly pinned -> NEVER evict
+                    var fullKey = $"{mount.Id}:{cf.RemotePath}";
+                    if (pinnedList.Any(p => string.Equals(p, fullKey, StringComparison.OrdinalIgnoreCase) ||
+                                            p.EndsWith(":" + cf.RemotePath, StringComparison.OrdinalIgnoreCase) ||
+                                            p.EndsWith("/" + cf.RemotePath, StringComparison.OrdinalIgnoreCase) ||
+                                            string.Equals(p, cf.RemotePath, StringComparison.OrdinalIgnoreCase)))
+                    {
+                        details.Add($"Protected (pinned): {cf.RemotePath}");
+                        continue;
+                    }
+
+                    // 3. Active game files: belonging to currently running game session -> NEVER evict
+                    if (_isGameActive(cf.RemotePath))
+                    {
+                        details.Add($"Protected (active game): {cf.RemotePath}");
+                        continue;
+                    }
+
+                    // 4. In-use / locked files: open by active process
+                    var dataFile = FindDataFilePath(mountCacheDir, cf.RemotePath, mount.RemotePath);
+                    if (dataFile != null && IsFileLocked(dataFile))
+                    {
+                        details.Add($"Protected (file locked/open): {cf.RemotePath}");
+                        continue;
+                    }
+
+                    var metaFile = FindMetaFilePath(mountCacheDir, cf.RemotePath, mount.RemotePath);
+
+                    candidateFiles.Add(new EvictionCandidate(
+                        mount.Id,
+                        mount.DisplayName,
+                        cf.RemotePath,
+                        cf.PhysicalBytes,
+                        cf.LastAccess,
+                        dataFile,
+                        metaFile,
+                        isMounted));
+                }
+            }
+
+            // 3. Determine target bytes to reclaim
+            long neededForBudget = Math.Max(0, physicalBefore - budget);
+            long neededForReserve = Math.Max(0, reserve - volumeFree);
+            long targetToReclaim = Math.Max(neededForBudget, neededForReserve);
+
+            if (force && targetToReclaim == 0)
+            {
+                targetToReclaim = long.MaxValue;
+            }
+
+            // 4. Sort eligible candidates by LRU (oldest access time first)
+            candidateFiles.Sort((a, b) => a.LastAccess.CompareTo(b.LastAccess));
+
+            // 5. If live mounts are present and we have an RC eviction handler, notify rclone first
+            foreach (var mount in mounts)
+            {
+                if (_isMountActive(mount.Id) && _rcEvictionHandler != null && targetToReclaim > 0)
+                {
+                    try
+                    {
+                        var targetMountBudget = Math.Max(16 * ByteSize.MiB, budget / Math.Max(1, mounts.Count));
+                        await _rcEvictionHandler(mount.Id, targetMountBudget);
+                        details.Add($"Dispatched dynamic rclone RC cache limit ({ByteSize.Format(targetMountBudget)}) to mount {mount.DisplayName}.");
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger?.LogWarning(ex, "Failed to dispatch RC eviction to mount {Id}", mount.Id);
+                    }
+                }
+            }
+
+            // 6. Evict candidates
+            foreach (var candidate in candidateFiles)
+            {
+                ct.ThrowIfCancellationRequested();
+
+                if (!force && bytesReclaimed >= targetToReclaim && targetToReclaim > 0)
+                    break;
+
+                if (force && targetToReclaim == long.MaxValue && (DateTime.Now - candidate.LastAccess) < _settings.EffectiveMaxAgeForProfile())
+                {
+                    if (physicalBefore - bytesReclaimed <= budget)
+                        break;
+                }
+
+                try
+                {
+                    // If live mount and RC forget handler available, inform rclone before file removal
+                    if (candidate.IsMounted && _rcForgetHandler != null)
+                    {
+                        await _rcForgetHandler(candidate.MountId, candidate.RemotePath);
+                    }
+
+                    long freedForFile = 0;
+
+                    // Delete sparse data file
+                    if (candidate.DataFilePath != null && File.Exists(candidate.DataFilePath))
+                    {
+                        var fi = new FileInfo(candidate.DataFilePath);
+                        freedForFile = candidate.PhysicalBytes > 0 ? candidate.PhysicalBytes : fi.Length;
+                        File.Delete(candidate.DataFilePath);
+                        CleanEmptyDirectoryParents(Path.GetDirectoryName(candidate.DataFilePath)!, Path.Combine(_cacheRoot, "m-" + candidate.MountId, "vfs"));
+                    }
+
+                    // Delete vfsMeta file
+                    if (candidate.MetaFilePath != null && File.Exists(candidate.MetaFilePath))
+                    {
+                        File.Delete(candidate.MetaFilePath);
+                        CleanEmptyDirectoryParents(Path.GetDirectoryName(candidate.MetaFilePath)!, Path.Combine(_cacheRoot, "m-" + candidate.MountId, "vfsMeta"));
+                    }
+
+                    bytesReclaimed += freedForFile;
+                    filesEvicted++;
+                    details.Add($"Evicted (LRU {candidate.LastAccess:g}, freed {ByteSize.Format(freedForFile)}): [{candidate.MountName}] {candidate.RemotePath}");
+                }
+                catch (Exception ex)
+                {
+                    details.Add($"Error evicting {candidate.RemotePath}: {ex.Message}");
+                    _logger?.LogWarning(ex, "Failed to evict cached file {RemotePath}", candidate.RemotePath);
+                }
+            }
+
+            var physicalAfter = MeasureCurrentPhysicalBytes();
+            var (volumeFreeAfter, _) = DiskInfo.FreeSpace(_cacheRoot);
+
+            // 7. Check Capacity Exhaustion (Phase 2 Requirement 6)
+            bool capacityExhausted = false;
+            string? exhaustionMessage = null;
+            if (physicalAfter > budget && (candidateFiles.Count == 0 || bytesReclaimed < targetToReclaim) && targetToReclaim > 0)
+            {
+                capacityExhausted = true;
+                exhaustionMessage = $"Cache capacity exhausted ({ByteSize.Format(physicalAfter)} / {ByteSize.Format(budget)}). All cached files are active, pinned, or locked. Close running applications or increase cache budget.";
+                details.Add("ALERT: " + exhaustionMessage);
+                _logger?.LogWarning(exhaustionMessage);
+            }
+
+            var reason = underDiskPressure
+                ? $"Disk pressure relief (reclaimed {ByteSize.Format(bytesReclaimed)})"
+                : neededForBudget > 0
+                    ? $"Cache budget enforcement (reclaimed {ByteSize.Format(bytesReclaimed)})"
+                    : $"Maintenance ({trigger}): evicted {filesEvicted} file(s)";
+
+            var report = new MaintenanceReport(
+                timestamp,
+                true,
+                reason,
+                bytesReclaimed,
+                filesEvicted,
+                physicalBefore,
+                physicalAfter,
+                volumeFree,
+                volumeFreeAfter,
+                details);
+
+            _logger?.LogInformation("SmartCacheManager completed maintenance: {Reason}. Files evicted: {Files}, Reclaimed: {Bytes}",
+                report.Reason, report.FilesEvicted, ByteSize.Format(report.BytesReclaimed));
+
+            lock (_sync)
+            {
+                LastReport = report;
+                IsCapacityExhausted = capacityExhausted;
+                CapacityExhaustionMessage = exhaustionMessage;
+            }
+
+            MaintenanceCompleted?.Invoke(report);
+            return report;
+        }, ct);
+    }
+
+    /// <summary>
+    /// Reclaims transient cached blocks from a game that just exited (Phase 4 Safe Game-Aware Cache).
+    /// Protects dirty files, pinned paths, and any file currently held open by lingering processes.
+    /// </summary>
+    public async Task<MaintenanceReport> ReclaimGameCacheAsync(string gameRootPath, CancellationToken ct = default)
+    {
+        // 1-second grace period for file handles to close
+        await Task.Delay(1000, ct);
+
+        return await Task.Run(() =>
+        {
+            lock (_sync)
+            {
+                var timestamp = DateTime.Now;
+                var details = new List<string>();
+                var (volumeFreeBefore, _) = DiskInfo.FreeSpace(_cacheRoot);
                 var physicalBefore = MeasureCurrentPhysicalBytes();
                 long bytesReclaimed = 0;
                 int filesEvicted = 0;
 
-                // 2. Identify candidate files across all mount caches
-                var candidateFiles = new List<EvictionCandidate>();
                 var pinnedList = _pinnedPathsProvider();
                 var mounts = _mountsProvider().ToList();
 
@@ -146,155 +381,206 @@ public sealed class SmartCacheManager : IDisposable
                     var mountCacheDir = Path.Combine(_cacheRoot, "m-" + mount.Id);
                     if (!Directory.Exists(mountCacheDir)) continue;
 
-                    // Verify safety marker
                     if (!File.Exists(Path.Combine(mountCacheDir, CacheMaintenance.Marker)) &&
                         !File.Exists(Path.Combine(mountCacheDir, CacheMaintenance.LegacyMarker)))
-                    {
-                        details.Add($"Skipping unmarked folder: m-{mount.Id}");
                         continue;
-                    }
 
-                    var isMounted = _isMountActive(mount.Id);
-                    var enumerated = CacheInspector.Enumerate(mountCacheDir, mount.RemotePath).ToList();
-
-                    foreach (var cf in enumerated)
+                    var files = CacheInspector.Enumerate(mountCacheDir, mount.RemotePath).ToList();
+                    foreach (var cf in files)
                     {
-                        // Check protection rules:
-                        // 1. Dirty files: pending upload to cloud -> NEVER evict
-                        if (cf.Dirty)
-                        {
-                            details.Add($"Protected (dirty/pending upload): {cf.RemotePath}");
-                            continue;
-                        }
+                        if (cf.Dirty) continue; // Pending upload -> preserve
+                        if (!cf.RemotePath.Contains(gameRootPath, StringComparison.OrdinalIgnoreCase)) continue;
 
-                        // 2. Pinned files: user explicitly pinned -> NEVER evict
+                        // Check pinned
                         var fullKey = $"{mount.Id}:{cf.RemotePath}";
                         if (pinnedList.Any(p => string.Equals(p, fullKey, StringComparison.OrdinalIgnoreCase) ||
-                                                p.EndsWith(":" + cf.RemotePath, StringComparison.OrdinalIgnoreCase) ||
-                                                string.Equals(p, cf.RemotePath, StringComparison.OrdinalIgnoreCase)))
-                        {
-                            details.Add($"Protected (pinned): {cf.RemotePath}");
+                                                p.EndsWith(":" + cf.RemotePath, StringComparison.OrdinalIgnoreCase)))
                             continue;
-                        }
 
-                        // 3. Active game files: belonging to currently running game session -> NEVER evict
-                        if (_isGameActive(cf.RemotePath))
-                        {
-                            details.Add($"Protected (active game): {cf.RemotePath}");
-                            continue;
-                        }
-
-                        // 4. In-use / locked files: open by active process
                         var dataFile = FindDataFilePath(mountCacheDir, cf.RemotePath, mount.RemotePath);
-                        if (dataFile != null && IsFileLocked(dataFile))
-                        {
-                            details.Add($"Protected (file locked/open): {cf.RemotePath}");
-                            continue;
-                        }
+                        if (dataFile != null && IsFileLocked(dataFile)) continue; // Lingering open handle -> preserve
 
                         var metaFile = FindMetaFilePath(mountCacheDir, cf.RemotePath, mount.RemotePath);
 
-                        candidateFiles.Add(new EvictionCandidate(
-                            mount.Id,
-                            mount.DisplayName,
-                            cf.RemotePath,
-                            cf.PhysicalBytes,
-                            cf.LastAccess,
-                            dataFile,
-                            metaFile,
-                            isMounted));
-                    }
-                }
-
-                // 3. Determine target bytes to reclaim
-                long neededForBudget = Math.Max(0, physicalBefore - budget);
-                long neededForReserve = Math.Max(0, reserve - volumeFree);
-                long targetToReclaim = Math.Max(neededForBudget, neededForReserve);
-
-                if (force && targetToReclaim == 0)
-                {
-                    // If manually forced with no overrun, reclaim expired files (older than MaxAge)
-                    targetToReclaim = long.MaxValue;
-                }
-
-                // 4. Sort eligible candidates by LRU (oldest access time first)
-                candidateFiles.Sort((a, b) => a.LastAccess.CompareTo(b.LastAccess));
-
-                foreach (var candidate in candidateFiles)
-                {
-                    ct.ThrowIfCancellationRequested();
-
-                    // If not forced and we have met the budget & reserve reclamation target, stop
-                    if (!force && bytesReclaimed >= targetToReclaim && targetToReclaim > 0)
-                        break;
-
-                    // If forced and target was MaxValue, only evict files older than MaxAge unless still over budget
-                    if (force && targetToReclaim == long.MaxValue && (DateTime.Now - candidate.LastAccess) < _settings.MaxAge)
-                    {
-                        if (physicalBefore - bytesReclaimed <= budget)
-                            break;
-                    }
-
-                    try
-                    {
-                        long freedForFile = 0;
-
-                        // Delete sparse data file
-                        if (candidate.DataFilePath != null && File.Exists(candidate.DataFilePath))
+                        try
                         {
-                            var fi = new FileInfo(candidate.DataFilePath);
-                            freedForFile = candidate.PhysicalBytes > 0 ? candidate.PhysicalBytes : fi.Length;
-                            File.Delete(candidate.DataFilePath);
-                            CleanEmptyDirectoryParents(Path.GetDirectoryName(candidate.DataFilePath)!, Path.Combine(_cacheRoot, "m-" + candidate.MountId, "vfs"));
-                        }
+                            long freed = cf.PhysicalBytes;
+                            if (dataFile != null && File.Exists(dataFile))
+                            {
+                                File.Delete(dataFile);
+                                CleanEmptyDirectoryParents(Path.GetDirectoryName(dataFile)!, Path.Combine(_cacheRoot, "m-" + mount.Id, "vfs"));
+                            }
+                            if (metaFile != null && File.Exists(metaFile))
+                            {
+                                File.Delete(metaFile);
+                                CleanEmptyDirectoryParents(Path.GetDirectoryName(metaFile)!, Path.Combine(_cacheRoot, "m-" + mount.Id, "vfsMeta"));
+                            }
 
-                        // Delete vfsMeta file
-                        if (candidate.MetaFilePath != null && File.Exists(candidate.MetaFilePath))
+                            bytesReclaimed += freed;
+                            filesEvicted++;
+                            details.Add($"Game transient reclaimed: {cf.RemotePath} ({ByteSize.Format(freed)})");
+                        }
+                        catch (Exception ex)
                         {
-                            File.Delete(candidate.MetaFilePath);
-                            CleanEmptyDirectoryParents(Path.GetDirectoryName(candidate.MetaFilePath)!, Path.Combine(_cacheRoot, "m-" + candidate.MountId, "vfsMeta"));
+                            details.Add($"Error reclaiming {cf.RemotePath}: {ex.Message}");
                         }
-
-                        bytesReclaimed += freedForFile;
-                        filesEvicted++;
-                        details.Add($"Evicted (LRU {candidate.LastAccess:g}, freed {ByteSize.Format(freedForFile)}): [{candidate.MountName}] {candidate.RemotePath}");
-                    }
-                    catch (Exception ex)
-                    {
-                        details.Add($"Error evicting {candidate.RemotePath}: {ex.Message}");
-                        _logger?.LogWarning(ex, "Failed to evict cached file {RemotePath}", candidate.RemotePath);
                     }
                 }
 
                 var physicalAfter = MeasureCurrentPhysicalBytes();
                 var (volumeFreeAfter, _) = DiskInfo.FreeSpace(_cacheRoot);
 
-                var reason = underDiskPressure
-                    ? $"Disk pressure relief (reclaimed {ByteSize.Format(bytesReclaimed)})"
-                    : neededForBudget > 0
-                        ? $"Cache budget enforcement (reclaimed {ByteSize.Format(bytesReclaimed)})"
-                        : $"Maintenance ({trigger}): evicted {filesEvicted} file(s)";
-
                 var report = new MaintenanceReport(
                     timestamp,
                     true,
-                    reason,
+                    $"Game exit transient cache reclamation for '{gameRootPath}' (reclaimed {ByteSize.Format(bytesReclaimed)})",
                     bytesReclaimed,
                     filesEvicted,
                     physicalBefore,
                     physicalAfter,
-                    volumeFree,
+                    volumeFreeBefore,
                     volumeFreeAfter,
                     details);
-
-                _logger?.LogInformation("SmartCacheManager completed maintenance: {Reason}. Files evicted: {Files}, Reclaimed: {Bytes}",
-                    report.Reason, report.FilesEvicted, ByteSize.Format(report.BytesReclaimed));
 
                 LastReport = report;
                 MaintenanceCompleted?.Invoke(report);
                 return report;
             }
         }, ct);
+    }
+
+    /// <summary>
+    /// Purges all local VFS caches across all mounts (Zero-Footprint / Ephemeral mode).
+    /// Protects dirty files unless <paramref name="discardPendingUploads"/> is true.
+    /// </summary>
+    public async Task<MaintenanceReport> PurgeAllCachesAsync(bool discardPendingUploads = false, CancellationToken ct = default)
+    {
+        return await Task.Run(() =>
+        {
+            lock (_sync)
+            {
+                var timestamp = DateTime.Now;
+                var details = new List<string>();
+                var (volumeFreeBefore, _) = DiskInfo.FreeSpace(_cacheRoot);
+                var physicalBefore = MeasureCurrentPhysicalBytes();
+                long bytesReclaimed = 0;
+                int filesEvicted = 0;
+
+                var mounts = _mountsProvider().ToList();
+                foreach (var mount in mounts)
+                {
+                    var mountCacheDir = Path.Combine(_cacheRoot, "m-" + mount.Id);
+                    if (!Directory.Exists(mountCacheDir)) continue;
+
+                    var clearResult = CacheMaintenance.ClearMountCache(mountCacheDir, _cacheRoot, discardPendingUploads);
+                    if (clearResult.Cleared)
+                    {
+                        bytesReclaimed += clearResult.BytesFreed;
+                        filesEvicted++;
+                        details.Add($"Purged mount {mount.DisplayName}: {clearResult.Message}");
+                    }
+                    else
+                    {
+                        details.Add($"Mount {mount.DisplayName} purge skipped: {clearResult.Message}");
+                    }
+                }
+
+                var physicalAfter = MeasureCurrentPhysicalBytes();
+                var (volumeFreeAfter, _) = DiskInfo.FreeSpace(_cacheRoot);
+
+                var report = new MaintenanceReport(
+                    timestamp,
+                    true,
+                    $"All caches purged (Zero-Footprint mode). Freed {ByteSize.Format(bytesReclaimed)}",
+                    bytesReclaimed,
+                    filesEvicted,
+                    physicalBefore,
+                    physicalAfter,
+                    volumeFreeBefore,
+                    volumeFreeAfter,
+                    details);
+
+                LastReport = report;
+                MaintenanceCompleted?.Invoke(report);
+                return report;
+            }
+        }, ct);
+    }
+
+    /// <summary>
+    /// Computes full Storage Efficiency metrics for the Storage-Negative Engine (Phase 3 & Phase 8).
+    /// </summary>
+    public StorageEfficiencyStats GetStorageEfficiencyStats(long networkBytesDownloaded, double cacheHitRatio, long totalLogicalBytesAccessed)
+    {
+        lock (_sync)
+        {
+            long physicalAllocated = 0;
+            long persistentBytes = 0;
+            long transientBytes = 0;
+            long protectedBytes = 0;
+
+            var pinnedList = _pinnedPathsProvider();
+
+            if (Directory.Exists(_cacheRoot))
+            {
+                foreach (var mount in _mountsProvider())
+                {
+                    var mountDir = Path.Combine(_cacheRoot, "m-" + mount.Id);
+                    if (!Directory.Exists(mountDir)) continue;
+
+                    try
+                    {
+                        foreach (var cf in CacheInspector.Enumerate(mountDir, mount.RemotePath))
+                        {
+                            physicalAllocated += cf.PhysicalBytes;
+
+                            var isPinned = pinnedList.Any(p => string.Equals(p, $"{mount.Id}:{cf.RemotePath}", StringComparison.OrdinalIgnoreCase) ||
+                                                               p.EndsWith(":" + cf.RemotePath, StringComparison.OrdinalIgnoreCase) ||
+                                                               p.EndsWith("/" + cf.RemotePath, StringComparison.OrdinalIgnoreCase) ||
+                                                               string.Equals(p, cf.RemotePath, StringComparison.OrdinalIgnoreCase));
+
+                            if (cf.Dirty || _isGameActive(cf.RemotePath))
+                            {
+                                protectedBytes += cf.PhysicalBytes;
+                            }
+                            else if (isPinned)
+                            {
+                                persistentBytes += cf.PhysicalBytes;
+                            }
+                            else
+                            {
+                                transientBytes += cf.PhysicalBytes;
+                            }
+                        }
+                    }
+                    catch
+                    {
+                        // Best effort enumeration
+                    }
+                }
+            }
+
+            var (volumeFree, _) = DiskInfo.FreeSpace(_cacheRoot);
+            var (fileSystem, _) = DiskInfo.VolumeFileSystem(_cacheRoot);
+            var reserve = _settings.MinFreeSpaceBytes;
+            var lowSpaceActive = _settings.LowSpaceAdaptiveMode && volumeFree < reserve * 2;
+
+            var avoidedStorage = Math.Max(0, totalLogicalBytesAccessed - physicalAllocated);
+
+            return new StorageEfficiencyStats(
+                physicalAllocated,
+                totalLogicalBytesAccessed,
+                avoidedStorage,
+                networkBytesDownloaded,
+                cacheHitRatio,
+                persistentBytes,
+                transientBytes,
+                protectedBytes,
+                volumeFree,
+                reserve,
+                fileSystem,
+                lowSpaceActive);
+        }
     }
 
     /// <summary>
@@ -414,7 +700,7 @@ public sealed class SmartCacheManager : IDisposable
         }
     }
 
-    private long MeasureCurrentPhysicalBytes()
+    public long MeasureCurrentPhysicalBytes()
     {
         long total = 0;
         if (!Directory.Exists(_cacheRoot)) return 0;

@@ -1,4 +1,4 @@
-﻿<UserControl x:Class="Vydrix.Desktop.Views.SmartCacheView"
+<UserControl x:Class="Vydrix.Desktop.Views.SmartCacheView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
     <ScrollViewer VerticalScrollBarVisibility="Auto">
@@ -10,7 +10,17 @@
                 </Grid.ColumnDefinitions>
                 <Border Style="{StaticResource Card}">
                     <StackPanel>
-                        <TextBlock Text="Storage budget" Style="{StaticResource H2}" />
+                        <TextBlock Text="Storage Policy &amp; Budget" Style="{StaticResource H2}" />
+                        
+                        <!-- Storage Policy Profiles -->
+                        <TextBlock Text="STORAGE PROFILE" Style="{StaticResource Label}" Margin="0,4,0,4" />
+                        <ComboBox SelectedValue="{Binding Profile, UpdateSourceTrigger=PropertyChanged}" SelectedValuePath="Content" Width="220" HorizontalAlignment="Left" Margin="0,0,0,10">
+                            <ComboBoxItem Content="Minimal" />
+                            <ComboBoxItem Content="Balanced" />
+                            <ComboBoxItem Content="Custom" />
+                            <ComboBoxItem Content="Disabled" />
+                        </ComboBox>
+
                         <TextBlock Text="CACHE BUDGET (GB, all drives)" Style="{StaticResource Label}" />
                         <StackPanel Orientation="Horizontal">
                             <TextBox Text="{Binding BudgetGb, UpdateSourceTrigger=PropertyChanged}" Width="90" />
@@ -18,47 +28,66 @@
                                 <ItemsControl.ItemsPanel><ItemsPanelTemplate><StackPanel Orientation="Horizontal" /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate>
-                                        <Button Content="{Binding StringFormat={}{0} GB}" Padding="10,5" Margin="0,0,6,0"
+                                        <Button Content="{Binding StringFormat={}{0} GB}" Padding="8,4" Margin="0,0,6,0"
                                                 Command="{Binding DataContext.PresetCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}" CommandParameter="{Binding}" />
                                     </DataTemplate>
                                 </ItemsControl.ItemTemplate>
                             </ItemsControl>
                         </StackPanel>
+
                         <TextBlock Text="PROTECTED FREE SPACE FOR WINDOWS (GB)" Style="{StaticResource Label}" Margin="0,14,0,4" />
                         <TextBox Text="{Binding ReserveGb, UpdateSourceTrigger=PropertyChanged}" Width="90" HorizontalAlignment="Left" />
-                        <TextBlock Text="EVICT DATA NOT USED FOR (DAYS)" Style="{StaticResource Label}" Margin="0,14,0,4" />
+
+                        <TextBlock Text="EVICT UNUSED DATA AFTER (DAYS)" Style="{StaticResource Label}" Margin="0,14,0,4" />
                         <TextBox Text="{Binding MaxAgeDays, UpdateSourceTrigger=PropertyChanged}" Width="90" HorizontalAlignment="Left" />
-                        <TextBlock Text="CACHE LOCATION" Style="{StaticResource Label}" Margin="0,14,0,4" />
+
+                        <!-- Storage-Negative & Zero-Footprint Options -->
+                        <TextBlock Text="STORAGE-NEGATIVE &amp; ZERO-FOOTPRINT OPTIONS" Style="{StaticResource Label}" Margin="0,14,0,6" />
+                        <CheckBox Content="Purge all local cache on exit / unmount (Zero-Footprint Mode)"
+                                  IsChecked="{Binding PurgeCacheOnExit}" Margin="0,0,0,6" />
+                        <CheckBox Content="Low-space adaptive mode (auto-compress cache when volume space is low)"
+                                  IsChecked="{Binding LowSpaceAdaptiveMode}" Margin="0,0,0,6" />
+                        <CheckBox Content="Reclaim transient game cache automatically when game process tree exits"
+                                  IsChecked="{Binding AutoReclaimOnGameExit}" Margin="0,0,0,12" />
+
+                        <TextBlock Text="CACHE LOCATION (Supports secondary NTFS drives: D:, E:)" Style="{StaticResource Label}" Margin="0,4,0,4" />
                         <DockPanel>
-                            <Button DockPanel.Dock="Right" Content="Browseâ€¦" Command="{Binding ChooseLocationCommand}" Margin="8,0,0,0" />
+                            <Button DockPanel.Dock="Right" Content="Browse…" Command="{Binding ChooseLocationCommand}" Margin="8,0,0,0" />
                             <TextBox Text="{Binding CacheRoot, UpdateSourceTrigger=PropertyChanged}" />
                         </DockPanel>
                         <TextBlock Text="{Binding VolumeInfo}" Style="{StaticResource Caption}" Margin="0,6,0,0" />
+
                         <StackPanel Orientation="Horizontal" Margin="0,16,0,0">
-                            <Button Style="{StaticResource Primary}" Content="Apply" Command="{Binding ApplyCommand}" />
-                            <Button Content="Refresh" Command="{Binding RefreshCommand}" />
-                            <Button Content="Clear cache of unmounted drivesâ€¦" Style="{StaticResource DangerButton}" Command="{Binding ClearCacheCommand}" />
+                            <Button Style="{StaticResource Primary}" Content="Apply Policy" Command="{Binding ApplyCommand}" Margin="0,0,8,0" />
+                            <Button Content="Migrate to Location…" Command="{Binding MigrateCacheLocationCommand}" Margin="0,0,8,0" />
+                            <Button Content="Run Maintenance" Command="{Binding RunMaintenanceCommand}" Margin="0,0,8,0" />
+                            <Button Content="Clear Cache" Style="{StaticResource DangerButton}" Command="{Binding ClearCacheCommand}" />
                         </StackPanel>
                     </StackPanel>
                 </Border>
+
                 <StackPanel Grid.Column="1">
                     <Border Style="{StaticResource Card}">
                         <StackPanel>
-                            <TextBlock Text="Usage" Style="{StaticResource H2}" />
+                            <TextBlock Text="Storage Efficiency Engine" Style="{StaticResource H2}" />
                             <ItemsControl ItemsSource="{Binding Usage}">
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate>
-                                        <DockPanel Margin="0,3"><TextBlock Text="{Binding Key}" Width="200" Foreground="{StaticResource Dim}" /><TextBlock Text="{Binding Value}" Foreground="{Binding Tone, Converter={StaticResource Tone}}" FontWeight="SemiBold" /></DockPanel>
+                                        <DockPanel Margin="0,3">
+                                            <TextBlock Text="{Binding Key}" Width="190" Foreground="{StaticResource Dim}" />
+                                            <TextBlock Text="{Binding Value}" Foreground="{Binding Tone, Converter={StaticResource Tone}}" FontWeight="SemiBold" TextWrapping="Wrap" />
+                                        </DockPanel>
                                     </DataTemplate>
                                 </ItemsControl.ItemTemplate>
                             </ItemsControl>
                             <TextBlock Text="{Binding Effective}" Foreground="{StaticResource Accent}" Margin="0,10,0,0" TextWrapping="Wrap" />
                         </StackPanel>
                     </Border>
+
                     <Border Style="{StaticResource Card}">
                         <StackPanel>
-                            <TextBlock Text="Eviction and safety" Style="{StaticResource H2}" />
-                            <TextBlock Style="{StaticResource Caption}" Text="Eviction is done by rclone: least-recently-used files are removed when the budget or the protected free space is exceeded, and data unused for the maximum age expires. Only cached copies are ever removed â€” never cloud originals, never files outside the VYDRIX cache folder, never save games." />
+                            <TextBlock Text="Safety &amp; Eviction Rules" Style="{StaticResource H2}" />
+                            <TextBlock Style="{StaticResource Caption}" Text="VYDRIX 2.0 strictly preserves cloud originals, saves, and dirty writes. When rclone is mounted, eviction is negotiated via rclone remote control APIs rather than unverified file deletion." />
                             <ItemsControl ItemsSource="{Binding Warnings}" Margin="0,8,0,0">
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate><TextBlock Text="{Binding}" Foreground="{StaticResource Warning}" TextWrapping="Wrap" Margin="0,0,0,6" FontSize="12" /></DataTemplate>
@@ -69,6 +98,23 @@
                 </StackPanel>
             </Grid>
 
+            <!-- Phase 6: Storage Reclamation Advisor -->
+            <Border Style="{StaticResource Card}">
+                <StackPanel>
+                    <TextBlock Text="Storage Reclamation Advisor (Opt-In Analysis)" Style="{StaticResource H2}" />
+                    <TextBlock Text="Identify large game installations and assets on your PC eligible for cloud offloading without touching saves or system files." Style="{StaticResource Caption}" Margin="0,0,0,10" />
+                    <DockPanel Margin="0,0,0,10">
+                        <Button DockPanel.Dock="Right" Content="Browse Folder…" Command="{Binding ChooseAdvisorFolderCommand}" Margin="8,0,0,0" />
+                        <Button DockPanel.Dock="Right" Content="Analyze Folder" Style="{StaticResource Primary}" Command="{Binding RunStorageAdvisorScanCommand}" Margin="8,0,0,0" />
+                        <TextBox Text="{Binding AdvisorFolder, UpdateSourceTrigger=PropertyChanged}" />
+                    </DockPanel>
+                    <Border Background="#111827" CornerRadius="6" Padding="12" Margin="0,4,0,0">
+                        <TextBlock Text="{Binding AdvisorSummary}" FontFamily="{StaticResource MonoFont}" FontSize="12" Foreground="{StaticResource Text}" TextWrapping="Wrap" />
+                    </Border>
+                </StackPanel>
+            </Border>
+
+            <!-- Pinned Files -->
             <Border Style="{StaticResource Card}">
                 <StackPanel>
                     <DockPanel>
@@ -93,6 +139,7 @@
                 </StackPanel>
             </Border>
 
+            <!-- Cached Files Table -->
             <Border Style="{StaticResource Card}">
                 <StackPanel>
                     <TextBlock Text="Cached files (most recently used first)" Style="{StaticResource H2}" />
@@ -140,4 +187,3 @@
         </StackPanel>
     </ScrollViewer>
 </UserControl>
-
