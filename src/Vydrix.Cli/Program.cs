@@ -25,7 +25,8 @@ public static class Program
           vydrix profile <game-id>                     Show the learned access profile of a game
           vydrix guardian [--dry-run]                  Inspect C: capacity, rate, VYDRIX footprint, and relocation
           vydrix workspace list                        List cloud project workspaces
-          vydrix workspace create <name> [--template T] Create cloud workspace (python, node, dotnet, flutter, git, ai)
+          vydrix workspace create <name> [--template T] [--cloud-root dir] [--scratch-root dir]
+                                                Create cloud workspace (python, node, dotnet, flutter, git, ai)
           vydrix workspace check <id>                  Test locking, latency, and health of a workspace
           vydrix ollama status                         Inspect Ollama configuration and models storage location
           vydrix ollama config [--path <dir>]          Configure OLLAMA_MODELS to cloud or secondary storage
@@ -193,7 +194,9 @@ public static class Program
                     var mgr = new CloudWorkspaceManager(Path.Combine(paths.DataRoot, "workspaces.json"));
                     var templateStr = Opt(args, "--template") ?? "DotNet";
                     var template = Enum.TryParse<CloudWorkspaceTemplate>(templateStr, true, out var t) ? t : CloudWorkspaceTemplate.DotNet;
-                    var w = mgr.CreateWorkspace(args[2], template);
+                    var cloudRoot = Opt(args, "--cloud-root");
+                    var scratchRoot = Opt(args, "--scratch-root");
+                    var w = mgr.CreateWorkspace(args[2], template, cloudRoot, scratchRoot);
                     Console.WriteLine($"Created workspace '{w.Name}' [{w.WorkspaceId}] ({w.Template})");
                     Console.WriteLine($"Cloud Source:   {w.CloudPath}");
                     Console.WriteLine($"Local Scratch:  {w.LocalScratchPath}");
