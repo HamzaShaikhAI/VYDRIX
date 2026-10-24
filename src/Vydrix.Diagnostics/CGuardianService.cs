@@ -228,6 +228,10 @@ public sealed class CGuardianService : IDisposable
                 if (!d.IsReady) continue;
                 if (d.DriveType != DriveType.Fixed) continue;
                 if (d.Name.StartsWith(primaryDrive, StringComparison.OrdinalIgnoreCase)) continue;
+                if (d.Name.StartsWith("G", StringComparison.OrdinalIgnoreCase)) continue;
+                if (d.DriveFormat.Contains("rclone", StringComparison.OrdinalIgnoreCase) ||
+                    d.DriveFormat.Contains("FUSE", StringComparison.OrdinalIgnoreCase) ||
+                    d.DriveFormat.Contains("WinFsp", StringComparison.OrdinalIgnoreCase)) continue;
 
                 // If volume has more than 5 GiB free, suggest it
                 if (d.AvailableFreeSpace > 5L * ByteSize.GiB)
