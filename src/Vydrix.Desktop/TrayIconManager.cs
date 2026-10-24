@@ -95,7 +95,7 @@ public sealed class TrayIconManager : IDisposable
         {
             if (_window.Icon != null)
             {
-                var iconUri = new Uri("pack://application:,,,/Assets/cloudplayx.ico");
+                var iconUri = new Uri("pack://application:,,,/Assets/vydrix.ico");
                 var streamInfo = Application.GetResourceStream(iconUri);
                 if (streamInfo != null)
                 {

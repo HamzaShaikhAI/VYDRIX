@@ -1,4 +1,4 @@
-using System.Collections.Concurrent;
+﻿using System.Collections.Concurrent;
 using Vydrix.Cache;
 using Vydrix.Core;
 using Vydrix.Diagnostics;
@@ -46,6 +46,14 @@ public sealed class AppHost : IAsyncDisposable
         Installer = new FullLocalInstaller(RcloneConfig);
         Metrics = new MetricsCollector(this);
         Pins = new PinKeeper(PinnedTargets);
+        CacheManager = new SmartCacheManager(
+            paths.CacheRootFor(Settings),
+            Settings.Cache,
+            () => Settings.Mounts,
+            id => Mounts.Get(id)?.State == MountState.Mounted,
+            path => CurrentLaunch?.Game != null && (string.IsNullOrEmpty(CurrentLaunch.Game.RootPath) || path.Contains(CurrentLaunch.Game.RootPath, StringComparison.OrdinalIgnoreCase)),
+            () => Settings.Cache.PinnedPaths,
+            LoggerFactory.CreateLogger<SmartCacheManager>());
 
         Mounts.ReadObserved += Engine.OnAccess;
         Mounts.LookupObserved += (mount, path, off, present, pre) => Engine.OnLookup(mount, path, off, present, pre);
@@ -85,6 +93,7 @@ public sealed class AppHost : IAsyncDisposable
     public FullLocalInstaller Installer { get; }
     public MetricsCollector Metrics { get; }
     public PinKeeper Pins { get; }
+    public SmartCacheManager CacheManager { get; }
     public IReadOnlyList<DependencyStatus> Dependencies { get; private set; } = [];
     public IReadOnlyList<RemoteEntry> Remotes { get; private set; } = [];
     public LaunchSession? CurrentLaunch { get; private set; }
@@ -95,6 +104,14 @@ public sealed class AppHost : IAsyncDisposable
         File.Exists(Path.Combine(AppPaths.AppDirectory, "Vydrix.exe")) ? Path.Combine(AppPaths.AppDirectory, "Vydrix.exe") :
         Path.Combine(AppPaths.AppDirectory, "cpx.exe");
     public string CpxPath => CliPath;
+
+    /// <summary>
+    /// Path to the VYDRIX GUI executable (Vydrix.exe) for use in startup registration.
+    /// Falls back to the CLI path if the desktop binary cannot be located (e.g. unit-test host).
+    /// </summary>
+    public string DesktopExePath =>
+        File.Exists(Path.Combine(AppPaths.AppDirectory, "Vydrix.exe")) ? Path.Combine(AppPaths.AppDirectory, "Vydrix.exe") :
+        CliPath;
 
     /// <summary>Cumulative prefetch accounting over finished sessions (plus live sessions in <see cref="StreamingEngine.PrefetchTotals"/>).</summary>
     public long FinishedUsefulBytes, FinishedWastedBytes;
@@ -389,6 +406,7 @@ public sealed class AppHost : IAsyncDisposable
         _diskTimer?.Dispose();
         Pins.Dispose();
         Metrics.Dispose();
+        CacheManager.Dispose();
         foreach (var id in _gameAware.Keys.ToList()) StopGameAware(id);
         await Engine.DisposeAsync();
         await Mounts.DisposeAsync();
@@ -397,3 +415,7 @@ public sealed class AppHost : IAsyncDisposable
         _instanceLock?.Dispose();
     }
 }
+
+
+
+

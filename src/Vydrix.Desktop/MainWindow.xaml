@@ -1,11 +1,11 @@
-<Window x:Class="Vydrix.Desktop.MainWindow"
+﻿<Window x:Class="Vydrix.Desktop.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="clr-namespace:Vydrix.Desktop.ViewModels"
         xmlns:v="clr-namespace:Vydrix.Desktop.Views"
         Title="VYDRIX" Height="860" Width="1380" MinWidth="1100" MinHeight="680"
         Background="{StaticResource Bg}" FontFamily="{StaticResource UiFont}" Foreground="{StaticResource Text}"
-        WindowStartupLocation="CenterScreen" Icon="Assets/cloudplayx.ico">
+        WindowStartupLocation="CenterScreen" Icon="Assets/vydrix.ico">
     <Window.Resources>
         <DataTemplate DataType="{x:Type vm:DashboardViewModel}"><v:DashboardView /></DataTemplate>
         <DataTemplate DataType="{x:Type vm:CloudDrivesViewModel}"><v:CloudDrivesView /></DataTemplate>
@@ -30,8 +30,8 @@
         <Border Grid.RowSpan="2" Background="{StaticResource Surface}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,1,0">
             <DockPanel>
                 <StackPanel DockPanel.Dock="Top" Margin="22,24,16,22" Orientation="Horizontal">
-                    <Border Width="34" Height="34" CornerRadius="9" Background="{StaticResource AccentSoft}" BorderBrush="{StaticResource Accent}" BorderThickness="1">
-                        <TextBlock Text="&#xE753;" FontFamily="{StaticResource IconFont}" FontSize="16" Foreground="{StaticResource Accent}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    <Border Width="34" Height="34" CornerRadius="9" Background="#0A0F1E" BorderBrush="{StaticResource Accent}" BorderThickness="1" ClipToBounds="True">
+                        <Image Source="Assets/vydrix_32.png" Width="24" Height="24" HorizontalAlignment="Center" VerticalAlignment="Center" RenderOptions.BitmapScalingMode="HighQuality" />
                     </Border>
                     <StackPanel Margin="10,0,0,0" VerticalAlignment="Center">
                         <TextBlock FontSize="16" FontWeight="Bold">
@@ -89,3 +89,4 @@
         </Border>
     </Grid>
 </Window>
+

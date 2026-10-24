@@ -1,4 +1,4 @@
-<Window x:Class="Vydrix.Desktop.Views.PrepareWindow"
+﻿<Window Icon="pack://application:,,,/Assets/vydrix.ico" x:Class="Vydrix.Desktop.Views.PrepareWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Optimize &amp; Prepare" Width="680" Style="{StaticResource DialogWindow}" WindowStartupLocation="CenterOwner">
@@ -33,3 +33,4 @@
         </StackPanel>
     </StackPanel>
 </Window>
+

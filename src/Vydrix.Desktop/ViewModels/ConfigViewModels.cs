@@ -1,4 +1,4 @@
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Globalization;
 using System.Text.Json;
@@ -18,7 +18,7 @@ public sealed record CachedFileRow(string Mount, string Path, string Cached, str
 /// <summary>Smart Cache: budget, protected free space, usage (physical vs logical), pinning and safe cleanup.</summary>
 public sealed partial class SmartCacheViewModel : PageViewModel
 {
-    public SmartCacheViewModel(AppHost host) : base(host, "Smart Cache", "") { }
+    public SmartCacheViewModel(AppHost host) : base(host, "Smart Cache", "î¶¢") { }
 
     public ObservableCollection<CachedFileRow> Files { get; } = new();
     public ObservableCollection<string> Pinned { get; } = new();
@@ -68,12 +68,12 @@ public sealed partial class SmartCacheViewModel : PageViewModel
                         cached += f.CachedBytes;
                         if (f.Dirty) dirty++;
                         rows.Add(new CachedFileRow(m.DisplayName, f.RemotePath, $"{f.CachedFraction:P0} ({ByteSize.Format(f.CachedBytes)})", ByteSize.Format(f.PhysicalBytes),
-                            ByteSize.Format(f.LogicalSize), f.LastAccess == default ? "—" : f.LastAccess.ToString("g"), f.Dirty, f.CachedFraction));
+                            ByteSize.Format(f.LogicalSize), f.LastAccess == default ? "â€”" : f.LastAccess.ToString("g"), f.Dirty, f.CachedFraction));
                     }
                 }
                 var (free, total) = DiskInfo.FreeSpace(root);
                 var (fs, sparse) = DiskInfo.VolumeFileSystem(root);
-                return ((phys, logical, cached, dirty, free, total), rows, $"{DiskInfo.VolumeRoot(root)} · {fs}{(sparse ? " (sparse files supported)" : " — sparse files NOT supported")} · {ByteSize.Format(free)} free of {ByteSize.Format(total)}");
+                return ((phys, logical, cached, dirty, free, total), rows, $"{DiskInfo.VolumeRoot(root)} Â· {fs}{(sparse ? " (sparse files supported)" : " â€” sparse files NOT supported")} Â· {ByteSize.Format(free)} free of {ByteSize.Format(total)}");
             });
             VolumeInfo = vol;
             Files.ReplaceWith(files.OrderByDescending(f => f.LastAccess).Take(500));
@@ -88,7 +88,7 @@ public sealed partial class SmartCacheViewModel : PageViewModel
                 new("Downloaded ranges", ByteSize.Format(usage.cached)),
                 new("Logical size of cached files", ByteSize.Format(usage.logical)),
                 new("Files with pending uploads", usage.dirty.ToString(), usage.dirty > 0 ? "warn" : "muted"),
-                new("Space saved vs full files", usage.logical > 0 ? $"{1 - usage.phys / (double)Math.Max(1, usage.logical):P0}" : "—"),
+                new("Space saved vs full files", usage.logical > 0 ? $"{1 - usage.phys / (double)Math.Max(1, usage.logical):P0}" : "â€”"),
             ]);
         });
     }
@@ -180,6 +180,17 @@ public sealed partial class SmartCacheViewModel : PageViewModel
     }
 
     [RelayCommand]
+    private async Task RunMaintenance()
+    {
+        await RunAsync(async () =>
+        {
+            var report = await Host.CacheManager.RunMaintenanceAsync(force: true, trigger: "manual");
+            await RefreshAsync();
+            Say($"Maintenance finished: {report.Reason}. Reclaimed: {ByteSize.Format(report.BytesReclaimed)} across {report.FilesEvicted} file(s).", "ok");
+        });
+    }
+
+    [RelayCommand]
     private void WarmPinned()
     {
         Host.Pins.Touch();
@@ -190,7 +201,7 @@ public sealed partial class SmartCacheViewModel : PageViewModel
 /// <summary>Settings: network, prediction, startup, rclone and advanced VFS tuning.</summary>
 public sealed partial class SettingsViewModel : PageViewModel
 {
-    public SettingsViewModel(AppHost host) : base(host, "Settings", "") { }
+    public SettingsViewModel(AppHost host) : base(host, "Settings", "îœ“") { }
 
     [ObservableProperty] private string _declaredMbps = "70";
     [ObservableProperty] private string _measured = "";
@@ -214,13 +225,16 @@ public sealed partial class SettingsViewModel : PageViewModel
     [ObservableProperty] private string _chunkStreams = "0";
     [ObservableProperty] private string _writeBackSeconds = "5";
     [ObservableProperty] private string _dataRoot = "";
+    [ObservableProperty] private bool _startOnSignIn;
+    [ObservableProperty] private bool _launchMinimizedToTray;
+    [ObservableProperty] private bool _autoReconnectDrives;
 
     public override void OnShown()
     {
         var s = Host.Settings;
         DeclaredMbps = s.Network.DeclaredDownloadMbps.ToString(CultureInfo.InvariantCulture);
         Measured = s.Network.MeasuredDownloadMbps is { } m
-            ? $"Last measured: {m:0.0} Mbps ({Bandwidth.BytesPerSecondToMBps(Bandwidth.MbpsToBytesPerSecond(m)):0.00} MB/s) on {s.Network.MeasuredAt:g} — used instead of the declared value."
+            ? $"Last measured: {m:0.0} Mbps ({Bandwidth.BytesPerSecondToMBps(Bandwidth.MbpsToBytesPerSecond(m)):0.00} MB/s) on {s.Network.MeasuredAt:g} â€” used instead of the declared value."
             : "Not measured yet (Optimize & Prepare measures real provider throughput).";
         BackgroundShare = (s.Network.BackgroundShare * 100).ToString("0");
         HardLimitMbps = s.Network.HardLimitMbps.ToString(CultureInfo.InvariantCulture);
@@ -234,7 +248,7 @@ public sealed partial class SettingsViewModel : PageViewModel
         KeepMounts = s.KeepMountsAfterExit;
         EncryptConfig = s.EncryptRcloneConfig;
         RclonePath = s.RclonePathOverride ?? "";
-        RcloneInfo = Host.Rclone is { } r ? $"{r.Version} · {r.Path} · config {(Host.RcloneConfig.IsEncrypted ? "encrypted (key protected by Windows DPAPI)" : "not encrypted")}" : "rclone not found";
+        RcloneInfo = Host.Rclone is { } r ? $"{r.Version} Â· {r.Path} Â· config {(Host.RcloneConfig.IsEncrypted ? "encrypted (key protected by Windows DPAPI)" : "not encrypted")}" : "rclone not found";
         LocalGamesRoot = Host.Paths.LocalGamesRootFor(s);
         BufferSize = ByteSize.ToRclone(s.Cache.BufferSizeBytes);
         ReadAhead = ByteSize.ToRclone(s.Cache.ReadAheadBytes);
@@ -304,7 +318,7 @@ public sealed record LogRow(string Time, string Level, string Tone, string Sourc
 /// <summary>Diagnostics: dependency status, warnings/errors, rclone logs and sanitized report export.</summary>
 public sealed partial class DiagnosticsViewModel : PageViewModel
 {
-    public DiagnosticsViewModel(AppHost host) : base(host, "Diagnostics", "") { }
+    public DiagnosticsViewModel(AppHost host) : base(host, "Diagnostics", "î¤") { }
 
     public ObservableCollection<KeyValueRow> Dependencies { get; } = new();
     public ObservableCollection<LogRow> Logs { get; } = new();
@@ -319,7 +333,7 @@ public sealed partial class DiagnosticsViewModel : PageViewModel
     public override void OnShown()
     {
         Host.RefreshDependencies();
-        Dependencies.ReplaceWith(Host.Dependencies.Select(d => new KeyValueRow(d.Name, d.Detail + (d.Remedy != null ? "  →  " + d.Remedy : ""),
+        Dependencies.ReplaceWith(Host.Dependencies.Select(d => new KeyValueRow(d.Name, d.Detail + (d.Remedy != null ? "  â†’  " + d.Remedy : ""),
             d.State switch { DependencyState.Ok => "ok", DependencyState.Warning => "warn", _ => "error" })));
         LoadLogs();
         var lines = new List<string>();
@@ -380,3 +394,6 @@ public sealed partial class DiagnosticsViewModel : PageViewModel
 
     [RelayCommand] private void Refresh() => OnShown();
 }
+
+
+

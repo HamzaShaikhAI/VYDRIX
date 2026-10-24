@@ -37,6 +37,12 @@ public sealed class CacheSettings
 
     public TimeSpan PollInterval { get; set; } = TimeSpan.FromSeconds(30);
 
+    /// <summary>Interval for lightweight background cache maintenance checks (default: 2 hours).</summary>
+    public TimeSpan MaintenanceInterval { get; set; } = TimeSpan.FromHours(2);
+
+    /// <summary>Enable automatic periodic cache cleanup based on budget and reserve.</summary>
+    public bool AutoMaintenanceEnabled { get; set; } = true;
+
     /// <summary>
     /// rclone --buffer-size. In full cache mode rclone reads buffer-size + read-ahead past every read position.
     /// Measured: default 16M causes large speculative downloads for random game reads, so the default here is 0 and

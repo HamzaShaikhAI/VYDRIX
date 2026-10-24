@@ -18,7 +18,7 @@
                 <Border Style="{StaticResource Card}">
                     <StackPanel>
                         <TextBlock Text="Network" Style="{StaticResource H2}" />
-                        <TextBlock Text="YOUR INTERNET DOWNLOAD SPEED (Mbps — megabits per second)" Style="{StaticResource Label}" />
+                        <TextBlock Text="YOUR INTERNET DOWNLOAD SPEED (Mbps &#x2014; megabits per second)" Style="{StaticResource Label}" />
                         <TextBox Text="{Binding DeclaredMbps, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource Field}" />
                         <TextBlock Text="{Binding Measured}" Style="{StaticResource Caption}" Margin="0,-6,0,12" />
                         <TextBlock Text="MAX SHARE OF BANDWIDTH FOR BACKGROUND PREFETCH (%)" Style="{StaticResource Label}" />
@@ -36,7 +36,7 @@
                         <TextBlock Text="Prediction engine" Style="{StaticResource H2}" />
                         <CheckBox Content="Predictive prefetching" IsChecked="{Binding PredictionEnabled}" />
                         <CheckBox Content="Record read telemetry (rclone debug log; needed for profiles and hit/miss metrics)" IsChecked="{Binding ReadProfiling}" />
-                        <TextBlock Text="MINIMUM PREDICTION CONFIDENCE (0.05 – 0.99)" Style="{StaticResource Label}" Margin="0,12,0,4" />
+                        <TextBlock Text="MINIMUM PREDICTION CONFIDENCE (0.05 &#x2013; 0.99)" Style="{StaticResource Label}" Margin="0,12,0,4" />
                         <TextBox Text="{Binding MinConfidence, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource Field}" />
                         <TextBlock Text="SPECULATIVE PREFETCH BUDGET PER GAME SESSION (GB)" Style="{StaticResource Label}" />
                         <TextBox Text="{Binding SessionBudgetGb, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource Field}" />
@@ -46,6 +46,17 @@
                 <Border Style="{StaticResource Card}">
                     <StackPanel>
                         <TextBlock Text="Startup and security" Style="{StaticResource H2}" />
+                        <!-- Always-On / startup controls (wired in Phase 4) -->
+                        <CheckBox Content="Start VYDRIX automatically when you sign in to Windows"
+                                  IsChecked="{Binding StartOnSignIn}"
+                                  Margin="0,0,0,4" />
+                        <CheckBox Content="Launch minimized to system tray on auto-start"
+                                  IsChecked="{Binding LaunchMinimizedToTray}"
+                                  IsEnabled="{Binding StartOnSignIn}"
+                                  Margin="16,0,0,4" />
+                        <CheckBox Content="Auto-reconnect drives after network or auth recovery"
+                                  IsChecked="{Binding AutoReconnectDrives}"
+                                  Margin="0,0,0,8" />
                         <CheckBox Content="Restore drives when VYDRIX starts" IsChecked="{Binding RestoreMounts}" />
                         <CheckBox Content="Keep drives mounted after closing (default answer)" IsChecked="{Binding KeepMounts}" />
                         <CheckBox Content="Encrypt the rclone config (key protected with Windows DPAPI)" IsChecked="{Binding EncryptConfig}" />
@@ -57,7 +68,7 @@
                 </Border>
                 <Border Style="{StaticResource Card}">
                     <StackPanel>
-                        <TextBlock Text="Advanced — rclone VFS" Style="{StaticResource H2}" />
+                        <TextBlock Text="Advanced &#x2014; rclone VFS" Style="{StaticResource H2}" />
                         <TextBlock Text="{Binding RcloneInfo}" Style="{StaticResource Caption}" Margin="0,0,0,10" />
                         <TextBlock Text="CUSTOM RCLONE PATH (empty = bundled)" Style="{StaticResource Label}" />
                         <TextBox Text="{Binding RclonePath, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,12" />
@@ -71,7 +82,7 @@
                         <TextBox Text="{Binding ChunkStreams, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource Field}" />
                         <TextBlock Text="--vfs-write-back (seconds after close before upload)" Style="{StaticResource Label}" />
                         <TextBox Text="{Binding WriteBackSeconds, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource Field}" />
-                        <TextBlock Style="{StaticResource Caption}" Text="Measured on this PC: with rclone's default 16 MiB buffer, three 64 KiB random reads downloaded tens of MiB; with 0 they downloaded 256 KiB. VYDRIX defaults to 0 and lets the prediction engine decide what to read ahead." />
+                        <TextBlock Style="{StaticResource Caption}" Text="Measured on this PC: with rclone&#x2019;s default 16 MiB buffer, three 64 KiB random reads downloaded tens of MiB; with 0 they downloaded 256 KiB. VYDRIX defaults to 0 and lets the prediction engine decide what to read ahead." />
                     </StackPanel>
                 </Border>
             </UniformGrid>

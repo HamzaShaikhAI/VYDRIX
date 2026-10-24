@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <defs>
+    <!-- Gradient for the V shape -->
+    <linearGradient id="vGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%"   stop-color="#00E5FF" />
+      <stop offset="45%"  stop-color="#0090FF" />
+      <stop offset="100%" stop-color="#9000FF" />
+    </linearGradient>
+
+    <!-- Glow filter for the arc -->
+    <filter id="arcGlow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="2.5" result="blur" />
+      <feMerge>
+        <feMergeNode in="blur" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+
+    <!-- Subtle vignette for background depth -->
+    <radialGradient id="bgVignette" cx="50%" cy="50%" r="70%">
+      <stop offset="0%"   stop-color="#0D1426" />
+      <stop offset="100%" stop-color="#060910" />
+    </radialGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="256" height="256" fill="url(#bgVignette)" rx="18" ry="18" />
+
+  <!-- Letter V — two thick diagonal arms meeting at a point -->
+  <!-- Left arm: top-left to apex -->
+  <polygon
+    points="38,52  74,52  128,162  82,162"
+    fill="url(#vGrad)"
+  />
+  <!-- Right arm: top-right to apex -->
+  <polygon
+    points="218,52  182,52  128,162  174,162"
+    fill="url(#vGrad)"
+  />
+
+  <!-- Cloud / arc motif above the V apex -->
+  <path
+    d="M 88,46 Q 128,22 168,46"
+    fill="none"
+    stroke="#00E5FF"
+    stroke-width="3.5"
+    stroke-linecap="round"
+    filter="url(#arcGlow)"
+    opacity="0.9"
+  />
+
+  <!-- VYDRIX wordmark -->
+  <text
+    x="128"
+    y="204"
+    font-family="'Segoe UI', Arial, sans-serif"
+    font-size="28"
+    font-weight="700"
+    fill="#FFFFFF"
+    text-anchor="middle"
+    letter-spacing="6"
+  >VYDRIX</text>
+
+  <!-- Tagline -->
+  <text
+    x="128"
+    y="226"
+    font-family="'Segoe UI', Arial, sans-serif"
+    font-size="11"
+    font-weight="400"
+    fill="#00B0C8"
+    text-anchor="middle"
+    letter-spacing="3"
+  >CLOUD-TO-SSD ENGINE</text>
+</svg>

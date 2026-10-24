@@ -1,4 +1,4 @@
-<Window x:Class="Vydrix.Desktop.Views.AddDriveWindow"
+﻿<Window Icon="pack://application:,,,/Assets/vydrix.ico" x:Class="Vydrix.Desktop.Views.AddDriveWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Add virtual drive" Width="620" Style="{StaticResource DialogWindow}" WindowStartupLocation="CenterOwner">
@@ -36,3 +36,4 @@
         </StackPanel>
     </StackPanel>
 </Window>
+
