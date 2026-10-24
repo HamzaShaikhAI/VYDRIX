@@ -23,7 +23,7 @@
         </Grid.ColumnDefinitions>
         <Grid.RowDefinitions>
             <RowDefinition Height="*" />
-            <RowDefinition Height="30" />
+            <RowDefinition Height="34" />
         </Grid.RowDefinitions>
 
         <!-- Sidebar -->
@@ -81,16 +81,29 @@
             <ContentControl Grid.Row="2" Content="{Binding Selected}" Margin="32,0,18,0" Focusable="False" />
         </Grid>
 
-        <!-- Status bar -->
+        <!-- Status bar (Resilient, Anti-Clipping, WCAG AA) -->
         <Border Grid.Row="1" Grid.Column="1" Background="{StaticResource Surface}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,1,0,0">
-            <StackPanel Orientation="Horizontal" Margin="32,0" VerticalAlignment="Center">
-                <TextBlock Text="&#xE8CE;" FontFamily="{StaticResource IconFont}" FontSize="11" Foreground="{StaticResource Dim}" VerticalAlignment="Center" Margin="0,0,6,0" />
-                <TextBlock Text="{Binding DrivesStatus}" Foreground="{StaticResource Muted}" FontSize="11.5" />
-                <TextBlock Text="{Binding RateStatus}" Foreground="{StaticResource Accent}" FontSize="11.5" Margin="18,0,0,0" />
-                <TextBlock Text="{Binding EngineStatus}" Foreground="{StaticResource Purple}" FontSize="11.5" Margin="18,0,0,0" />
-                <TextBlock Text="{Binding GameStatus}" Foreground="{StaticResource Success}" FontSize="11.5" Margin="18,0,0,0" />
-            </StackPanel>
+            <Grid Margin="24,0" VerticalAlignment="Center">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Orientation="Horizontal" Grid.Column="0" VerticalAlignment="Center">
+                    <TextBlock Text="&#xE8CE;" FontFamily="{StaticResource IconFont}" FontSize="12" Foreground="{StaticResource Dim}" VerticalAlignment="Center" Margin="0,0,8,0" />
+                    <TextBlock Text="{Binding DrivesStatus}" Foreground="{StaticResource Muted}" FontSize="11.5" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="360" ToolTip="{Binding DrivesStatus}" />
+                </StackPanel>
+                
+                <StackPanel Orientation="Horizontal" Grid.Column="1" Margin="24,0" VerticalAlignment="Center">
+                    <TextBlock Text="{Binding RateStatus}" Foreground="{StaticResource Accent}" FontSize="11.5" Margin="0,0,16,0" VerticalAlignment="Center" Visibility="{Binding RateStatus, Converter={StaticResource Vis}}" />
+                    <TextBlock Text="{Binding EngineStatus}" Foreground="{StaticResource Purple}" FontSize="11.5" Margin="0,0,16,0" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="300" Visibility="{Binding EngineStatus, Converter={StaticResource Vis}}" ToolTip="{Binding EngineStatus}" />
+                </StackPanel>
+
+                <StackPanel Orientation="Horizontal" Grid.Column="2" VerticalAlignment="Center">
+                    <TextBlock Text="{Binding GameStatus}" Foreground="{StaticResource Success}" FontSize="11.5" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="280" Visibility="{Binding GameStatus, Converter={StaticResource Vis}}" ToolTip="{Binding GameStatus}" />
+                </StackPanel>
+            </Grid>
         </Border>
     </Grid>
 </Window>
-

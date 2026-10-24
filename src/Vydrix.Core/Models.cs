@@ -373,4 +373,23 @@ public sealed record WorkloadPreflightReport(
     IReadOnlyList<string> Warnings,
     IReadOnlyList<string> Recommendations);
 
+public sealed record VydrixStorageFootprint(
+    DateTime Timestamp,
+    long InstalledAppBytes,
+    long PersistentDataBytes,
+    long LogsAndDiagBytes,
+    long CurrentCacheBytes,
+    long PeakCacheBytes,
+    long TempDataBytes,
+    long UpdateStagingBytes,
+    long TotalCBytes,
+    long TotalDBytes,
+    long CloudProjectBytes,
+    long PreferredBudgetBytes,
+    long BlockerBudgetBytes,
+    bool IsWarning,
+    bool IsBlocker,
+    string StatusSummary);
+
+
 

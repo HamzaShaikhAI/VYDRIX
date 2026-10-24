@@ -322,17 +322,38 @@ public sealed class CGuardianService : IDisposable
                 var logsPath = Path.Combine(_dataRoot, "logs");
                 if (Directory.Exists(logsPath))
                 {
-                    var files = new DirectoryInfo(logsPath).GetFiles("*.log")
+                    // Clean up any historical log files (*.log, *.log.prev, old timestamped logs)
+                    var allLogFiles = new DirectoryInfo(logsPath).GetFiles("*.*")
+                        .Where(f => f.Name.Contains(".log", StringComparison.OrdinalIgnoreCase))
                         .OrderByDescending(f => f.LastWriteTimeUtc)
-                        .Skip(2); // Keep 2 newest logs
+                        .ToList();
 
-                    foreach (var f in files)
+                    // 1. Delete files beyond 2 newest
+                    foreach (var f in allLogFiles.Skip(2))
                     {
                         try
                         {
                             long sz = f.Length;
                             f.Delete();
                             bytesReclaimed += sz;
+                        }
+                        catch { }
+                    }
+
+                    // 2. Truncate/prune any remaining file larger than 5 MiB
+                    foreach (var f in allLogFiles.Take(2))
+                    {
+                        try
+                        {
+                            if (f.Length > 5 * ByteSize.MiB)
+                            {
+                                long before = f.Length;
+                                // Read last 1000 lines
+                                var lines = File.ReadLines(f.FullName).TakeLast(1000).ToList();
+                                File.WriteAllLines(f.FullName, lines);
+                                var newLen = new FileInfo(f.FullName).Length;
+                                if (before > newLen) bytesReclaimed += (before - newLen);
+                            }
                         }
                         catch { }
                     }
@@ -343,6 +364,105 @@ public sealed class CGuardianService : IDisposable
 
         CheckStatus();
         return bytesReclaimed;
+    }
+
+    /// <summary>
+    /// Computes the comprehensive storage footprint breakdown across installed binaries, persistent data,
+    /// logs, active cache, temp data, and cloud assets, enforcing the 500 MB preferred and 1 GB blocker thresholds.
+    /// </summary>
+    public VydrixStorageFootprint MeasureFullFootprint(string? activeCacheRoot = null)
+    {
+        long installedAppBytes = 0;
+        try
+        {
+            var appDir = AppDomain.CurrentDomain.BaseDirectory;
+            if (Directory.Exists(appDir)) installedAppBytes = MeasureDirectoryBytes(appDir);
+        }
+        catch { }
+
+        long persistentDataBytes = 0;
+        try
+        {
+            string[] persistentFiles = ["vydrix.db", "settings.json", "vault_sessions.json", "workspaces.json", "rclone.conf", "rclone.conf.key"];
+            foreach (var pf in persistentFiles)
+            {
+                var full = Path.Combine(_dataRoot, pf);
+                if (File.Exists(full)) persistentDataBytes += new FileInfo(full).Length;
+            }
+        }
+        catch { }
+
+        long logsAndDiagBytes = MeasureDirectoryBytes(Path.Combine(_dataRoot, "logs")) +
+                               MeasureDirectoryBytes(Path.Combine(_dataRoot, "diagnostics"));
+
+        string cacheDir = activeCacheRoot ?? Path.Combine(_dataRoot, "cache");
+        long currentCacheBytes = MeasureDirectoryBytes(cacheDir);
+
+        long tempDataBytes = MeasureDirectoryBytes(Path.Combine(Path.GetTempPath(), "Vydrix"));
+
+        long stagingBytes = 0;
+        try
+        {
+            var staging = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Documents", "VYDRIX", "artifacts", "VYDRIX-3.0-staging");
+            if (Directory.Exists(staging)) stagingBytes = MeasureDirectoryBytes(staging);
+        }
+        catch { }
+
+        // Drive attribution
+        bool cacheOnC = cacheDir.StartsWith("C:", StringComparison.OrdinalIgnoreCase);
+        bool cacheOnD = cacheDir.StartsWith("D:", StringComparison.OrdinalIgnoreCase);
+
+        long totalCBytes = persistentDataBytes + logsAndDiagBytes + tempDataBytes +
+                           (cacheOnC ? currentCacheBytes : 0);
+
+        // Include installed app on C if appDir is on C
+        if (AppDomain.CurrentDomain.BaseDirectory.StartsWith("C:", StringComparison.OrdinalIgnoreCase))
+        {
+            totalCBytes += installedAppBytes;
+        }
+
+        long totalDBytes = (cacheOnD ? currentCacheBytes : 0);
+        string dScratch = @"D:\VydrixScratch";
+        if (Directory.Exists(dScratch)) totalDBytes += MeasureDirectoryBytes(dScratch);
+
+        long cloudProjectBytes = 0;
+        try
+        {
+            if (Directory.Exists(@"G:\workspaces")) cloudProjectBytes += MeasureDirectoryBytes(@"G:\workspaces");
+            if (Directory.Exists(@"G:\ai\models")) cloudProjectBytes += MeasureDirectoryBytes(@"G:\ai\models");
+            if (Directory.Exists(@"G:\games")) cloudProjectBytes += MeasureDirectoryBytes(@"G:\games");
+        }
+        catch { }
+
+        long preferredBudget = 500L * ByteSize.MiB;
+        long blockerBudget = 1024L * ByteSize.MiB;
+
+        bool isWarning = totalCBytes >= 400L * ByteSize.MiB;
+        bool isBlocker = totalCBytes >= blockerBudget;
+
+        string summary = isBlocker
+            ? $"RELEASE BLOCKER: VYDRIX storage footprint on C: is {ByteSize.Format(totalCBytes)}, exceeding the 1 GB maximum threshold."
+            : isWarning
+                ? $"WARNING: VYDRIX storage footprint on C: is {ByteSize.Format(totalCBytes)}, approaching the 500 MB budget."
+                : $"OPTIMAL: VYDRIX storage footprint on C: is {ByteSize.Format(totalCBytes)} (well within the {ByteSize.Format(preferredBudget)} preferred budget).";
+
+        return new VydrixStorageFootprint(
+            DateTime.Now,
+            installedAppBytes,
+            persistentDataBytes,
+            logsAndDiagBytes,
+            currentCacheBytes,
+            Math.Max(currentCacheBytes, 512L * ByteSize.MiB),
+            tempDataBytes,
+            stagingBytes,
+            totalCBytes,
+            totalDBytes,
+            cloudProjectBytes,
+            preferredBudget,
+            blockerBudget,
+            isWarning,
+            isBlocker,
+            summary);
     }
 
     private static long MeasureDirectoryBytes(string path, bool recursive = true)

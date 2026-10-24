@@ -68,7 +68,119 @@ public sealed class AppPaths
     public string DefaultLocalGamesRoot => Path.Combine(DataRoot, "local-games");
     public string DiagnosticsDirectory => Path.Combine(DataRoot, "diagnostics");
 
-    public string CacheRootFor(AppSettings s) => string.IsNullOrWhiteSpace(s.Cache.CacheRoot) ? DefaultCacheRoot : s.Cache.CacheRoot!;
+    public string CacheRootFor(AppSettings s) => ResolveActiveCacheRoot(s, out _, out _);
+
+    /// <summary>
+    /// Resolves the actual runtime cache root according to Broker settings, physical secondary storage availability,
+    /// and fallback protection policies. Never silently falls back to an unbounded C: cache.
+    /// </summary>
+    public string ResolveActiveCacheRoot(
+        AppSettings s,
+        out bool isRelocatedToSecondary,
+        out string? fallbackWarning)
+    {
+        isRelocatedToSecondary = false;
+        fallbackWarning = null;
+
+        // 0. Zero Footprint Mode specifies a strictly bounded 512 MiB cache on C:
+        if (s.Cache.ZeroFootprintMode || s.Cache.Profile == CachePolicyProfile.ZeroFootprint)
+        {
+            isRelocatedToSecondary = false;
+            return string.IsNullOrWhiteSpace(s.Cache.CacheRoot) ? DefaultCacheRoot : Path.GetFullPath(s.Cache.CacheRoot);
+        }
+
+        // 1. Explicit CustomCachePath on Broker takes highest priority
+        if (!string.IsNullOrWhiteSpace(s.Broker.CustomCachePath))
+        {
+            var custom = Path.GetFullPath(s.Broker.CustomCachePath);
+            if (IsUsableStorageVolume(custom, out _, out _))
+            {
+                isRelocatedToSecondary = !custom.StartsWith("C:", StringComparison.OrdinalIgnoreCase);
+                return custom;
+            }
+            fallbackWarning = $"Custom cache path '{custom}' is unavailable. Operating in fallback mode.";
+        }
+
+        // 2. If Broker policy is SecondaryPhysicalDrive (default):
+        if (s.Broker.DefaultCachePlacement == CachePlacementOption.SecondaryPhysicalDrive)
+        {
+            // If CacheRoot was explicitly set to a secondary volume (like D:), keep it
+            if (!string.IsNullOrWhiteSpace(s.Cache.CacheRoot) &&
+                !s.Cache.CacheRoot.StartsWith("C:", StringComparison.OrdinalIgnoreCase) &&
+                !s.Cache.CacheRoot.StartsWith("G:", StringComparison.OrdinalIgnoreCase) &&
+                IsUsableStorageVolume(s.Cache.CacheRoot, out _, out _))
+            {
+                isRelocatedToSecondary = true;
+                return Path.GetFullPath(s.Cache.CacheRoot);
+            }
+
+            // Otherwise, discover healthy secondary physical drive (e.g. D:\)
+            var secondaryRoot = FindUsableSecondaryPhysicalDrive();
+            if (secondaryRoot != null)
+            {
+                isRelocatedToSecondary = true;
+                return Path.Combine(secondaryRoot, "VydrixCache");
+            }
+
+            fallbackWarning = "Secondary physical drive (D:) is unavailable or below 5 GiB free reserve. Operating in protective bounded C: fallback mode (512 MiB hard budget enforced).";
+        }
+
+        // 3. If s.Cache.CacheRoot was explicitly customized by test or user (and not default C: cache)
+        if (!string.IsNullOrWhiteSpace(s.Cache.CacheRoot) &&
+            !s.Cache.CacheRoot.Equals(DefaultCacheRoot, StringComparison.OrdinalIgnoreCase))
+        {
+            isRelocatedToSecondary = !s.Cache.CacheRoot.StartsWith("C:", StringComparison.OrdinalIgnoreCase);
+            return Path.GetFullPath(s.Cache.CacheRoot);
+        }
+
+        // 4. Default C: cache root (strictly bounded under ZeroFootprint / BoundedC)
+        return DefaultCacheRoot;
+    }
+
+    public static string? FindUsableSecondaryPhysicalDrive()
+    {
+        try
+        {
+            foreach (var d in DriveInfo.GetDrives())
+            {
+                if (!d.IsReady) continue;
+                if (d.DriveType != DriveType.Fixed) continue;
+                if (d.Name.StartsWith("C", StringComparison.OrdinalIgnoreCase)) continue;
+                if (d.Name.StartsWith("G", StringComparison.OrdinalIgnoreCase)) continue;
+                if (d.DriveFormat.Contains("rclone", StringComparison.OrdinalIgnoreCase) ||
+                    d.DriveFormat.Contains("FUSE", StringComparison.OrdinalIgnoreCase) ||
+                    d.DriveFormat.Contains("WinFsp", StringComparison.OrdinalIgnoreCase)) continue;
+
+                if (d.AvailableFreeSpace > 5L * ByteSize.GiB)
+                {
+                    return d.Name; // e.g. "D:\"
+                }
+            }
+        }
+        catch { }
+
+        return null;
+    }
+
+    public static bool IsUsableStorageVolume(string path, out long freeBytes, out string? driveFormat)
+    {
+        freeBytes = 0;
+        driveFormat = null;
+        try
+        {
+            var root = Path.GetPathRoot(path);
+            if (string.IsNullOrEmpty(root)) return false;
+            var drive = new DriveInfo(root);
+            if (!drive.IsReady) return false;
+            freeBytes = drive.AvailableFreeSpace;
+            driveFormat = drive.DriveFormat;
+            return freeBytes > 2L * ByteSize.GiB;
+        }
+        catch
+        {
+            return false;
+        }
+    }
 
     public string MountCacheDir(AppSettings s, string mountId) => Path.Combine(CacheRootFor(s), "m-" + mountId);
 

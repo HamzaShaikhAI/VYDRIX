@@ -1,22 +1,24 @@
 using System.Collections.ObjectModel;
 using System.Diagnostics;
+using System.Windows;
 using Vydrix.App;
 using Vydrix.Cache;
 using Vydrix.Core;
+using Vydrix.Mount;
 using Vydrix.Providers;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 
 namespace Vydrix.Desktop.ViewModels;
 
-public sealed partial class DriveItem : ObservableObject
+public sealed class DriveItem
 {
     public required MountDefinition Definition { get; init; }
-    [ObservableProperty] private string _letter = "";
-    [ObservableProperty] private string _state = "";
-    [ObservableProperty] private string _tone = "muted";
-    [ObservableProperty] private string _detail = "";
-    [ObservableProperty] private bool _isMounted;
+    public required string Letter { get; init; }
+    public required string State { get; init; }
+    public required string Tone { get; init; }
+    public required bool IsMounted { get; init; }
+    public required string Detail { get; init; }
     public string Name => Definition.DisplayName;
     public string Remote => Definition.RemoteSpec;
 }
@@ -25,7 +27,7 @@ public sealed record ProviderRow(string Name, string Support, string Tone, strin
 
 public sealed partial class CloudDrivesViewModel : PageViewModel
 {
-    public CloudDrivesViewModel(AppHost host) : base(host, "Cloud Drives", "") { }
+    public CloudDrivesViewModel(AppHost host) : base(host, "Cloud Drives", "\uE753") { }
 
     public ObservableCollection<KeyValueRow> Accounts { get; } = new();
     public ObservableCollection<DriveItem> Drives { get; } = new();
@@ -65,18 +67,16 @@ public sealed partial class CloudDrivesViewModel : PageViewModel
     [RelayCommand]
     private async Task ConnectGoogleDrive()
     {
-        var w = new Views.ConnectDriveWindow(Host) { Owner = System.Windows.Application.Current.MainWindow };
+        var w = new Views.ConnectDriveWindow(Host) { Owner = Application.Current.MainWindow };
         if (w.ShowDialog() == true)
         {
             await Host.RefreshRemotesAsync();
             await ReplaceOldGoogleConnectionsAsync(w.RemoteName);
             OnStateChanged();
-            // One click: mount the whole Google Drive straight away on the next free drive letter.
-            // A read-only login must give a read-only drive, so writes (e.g. a Steam library) fail immediately and clearly.
             var def = new MountDefinition { DisplayName = "Google Drive", RemoteName = w.RemoteName, RemotePath = "", AutoMount = true, ReadOnly = w.ReadOnlyScope };
             Host.Settings.Mounts.Add(def);
             Host.SaveSettings();
-            Say("Google Drive connected. Mounting…", "accent");
+            Say("Google Drive connected. Mounting...", "accent");
             await RunAsync(async () =>
             {
                 var s = await Host.MountAsync(def);
@@ -88,11 +88,6 @@ public sealed partial class CloudDrivesViewModel : PageViewModel
         }
     }
 
-    /// <summary>
-    /// A new Google sign-in replaces earlier ones made by VYDRIX ("gdrive*" accounts and their drives), so the user
-    /// never has to clean up by hand. Only local logins and drive entries are removed — files in Google Drive are untouched.
-    /// Drives used by a running game are left alone.
-    /// </summary>
     private async Task ReplaceOldGoogleConnectionsAsync(string keep)
     {
         if (Host.Rclone is null) return;
@@ -121,7 +116,7 @@ public sealed partial class CloudDrivesViewModel : PageViewModel
             Say("Connect a cloud account first.", "warn");
             return;
         }
-        var w = new Views.AddDriveWindow(Host, remote) { Owner = System.Windows.Application.Current.MainWindow };
+        var w = new Views.AddDriveWindow(Host, remote) { Owner = Application.Current.MainWindow };
         if (w.ShowDialog() != true || w.Result is null) return;
         Host.Settings.Mounts.Add(w.Result);
         Host.SaveSettings();

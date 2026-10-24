@@ -3,6 +3,102 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
     <ScrollViewer VerticalScrollBarVisibility="Auto">
         <StackPanel Margin="0,0,14,20">
+            <!-- Phase 4: Storage Footprint & Shield Dashboard Card -->
+            <Border Style="{StaticResource Card}" BorderBrush="#00E5FF" BorderThickness="1.5" Margin="0,0,0,14" Background="#0C1322">
+                <StackPanel>
+                    <DockPanel LastChildFill="False" Margin="0,0,0,12">
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <TextBlock Text="🛡️ VYDRIX STORAGE FOOTPRINT &amp; SYSTEM SHIELD" FontSize="15" FontWeight="Bold" Foreground="#00E5FF" />
+                            <Border Background="#2000E5FF" CornerRadius="4" Padding="8,3" Margin="12,0,0,0">
+                                <TextBlock Text="{Binding FootprintStatusSummary}" FontSize="11" Foreground="#00E5FF" FontWeight="SemiBold" />
+                            </Border>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" DockPanel.Dock="Right">
+                            <Button Content="Dry-Run Preview" Command="{Binding RunGuardianDryRunCommand}" Padding="10,4" FontSize="11" Margin="0,0,8,0" />
+                            <Button Content="Safe Storage Cleanup" Command="{Binding ExecuteGuardianCleanupCommand}" Padding="10,4" FontSize="11" Style="{StaticResource Primary}" />
+                        </StackPanel>
+                    </DockPanel>
+
+                    <!-- Real On-Disk Storage Allocation Breakdown (10 Metrics) -->
+                    <Grid Margin="0,0,0,12">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+
+                        <!-- Col 1: Core App & Data -->
+                        <Border Background="#121828" CornerRadius="6" Padding="10,8" Margin="0,0,6,0">
+                            <StackPanel>
+                                <TextBlock Text="INSTALLED APPLICATION" Style="{StaticResource Label}" />
+                                <TextBlock Text="{Binding InstalledAppFormatted}" FontWeight="SemiBold" FontSize="13" Foreground="{StaticResource Text}" />
+                                <TextBlock Text="PERSISTENT DATA" Style="{StaticResource Label}" Margin="0,8,0,0" />
+                                <TextBlock Text="{Binding PersistentDataFormatted}" FontWeight="SemiBold" FontSize="13" Foreground="{StaticResource Text}" />
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Col 2: Logs & Staging -->
+                        <Border Grid.Column="1" Background="#121828" CornerRadius="6" Padding="10,8" Margin="0,0,6,0">
+                            <StackPanel>
+                                <TextBlock Text="LOGS &amp; DIAGNOSTICS" Style="{StaticResource Label}" />
+                                <TextBlock Text="{Binding LogsAndDiagFormatted}" FontWeight="SemiBold" FontSize="13" Foreground="{StaticResource Text}" />
+                                <TextBlock Text="UPDATE STAGING" Style="{StaticResource Label}" Margin="0,8,0,0" />
+                                <TextBlock Text="{Binding UpdateStagingFormatted}" FontWeight="SemiBold" FontSize="13" Foreground="{StaticResource Text}" />
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Col 3: Cache Metrics -->
+                        <Border Grid.Column="2" Background="#121828" CornerRadius="6" Padding="10,8" Margin="0,0,6,0">
+                            <StackPanel>
+                                <TextBlock Text="CURRENT CACHE" Style="{StaticResource Label}" />
+                                <TextBlock Text="{Binding CurrentCacheFormatted}" FontWeight="SemiBold" FontSize="13" Foreground="{StaticResource Accent}" />
+                                <TextBlock Text="CACHE PEAK" Style="{StaticResource Label}" Margin="0,8,0,0" />
+                                <TextBlock Text="{Binding PeakCacheFormatted}" FontWeight="SemiBold" FontSize="13" Foreground="{StaticResource Muted}" />
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Col 4: Volumes (C: vs D:) -->
+                        <Border Grid.Column="3" Background="#141F36" CornerRadius="6" Padding="10,8" Margin="0,0,6,0" BorderBrush="{Binding FootprintTone, Converter={StaticResource Tone}}" BorderThickness="1">
+                            <StackPanel>
+                                <TextBlock Text="TOTAL ON C: (SYSTEM)" Style="{StaticResource Label}" />
+                                <TextBlock Text="{Binding TotalCFormatted}" FontWeight="Bold" FontSize="14" Foreground="{Binding FootprintTone, Converter={StaticResource Tone}}" />
+                                <TextBlock Text="TOTAL ON D: (CACHE)" Style="{StaticResource Label}" Margin="0,8,0,0" />
+                                <TextBlock Text="{Binding TotalDFormatted}" FontWeight="SemiBold" FontSize="13" Foreground="{StaticResource Success}" />
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Col 5: Cloud Projects on G: -->
+                        <Border Grid.Column="4" Background="#121828" CornerRadius="6" Padding="10,8">
+                            <StackPanel>
+                                <TextBlock Text="CLOUD WORKSPACE (G:)" Style="{StaticResource Label}" />
+                                <TextBlock Text="{Binding CloudProjectsFormatted}" FontWeight="Bold" FontSize="14" Foreground="{StaticResource Purple}" />
+                                <TextBlock Text="User games &amp; AI models" Style="{StaticResource Caption}" Margin="0,4,0,0" />
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+
+                    <!-- Cache Placement Truth & Quick Actions -->
+                    <Border Background="#101C30" CornerRadius="6" Padding="12,10" Margin="0,0,0,4">
+                        <DockPanel LastChildFill="False">
+                            <StackPanel VerticalAlignment="Center">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="Active Cache Target: " Foreground="{StaticResource Dim}" FontSize="12" />
+                                    <TextBlock Text="{Binding CachePlacementStatusText}" FontWeight="SemiBold" Foreground="{StaticResource Accent}" FontSize="12" />
+                                </StackPanel>
+                                <TextBlock Text="{Binding CacheFallbackWarningText}" Foreground="{StaticResource Warning}" FontSize="11" Margin="0,3,0,0"
+                                           Visibility="{Binding CacheFallbackWarningText, Converter={StaticResource Vis}}" />
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" DockPanel.Dock="Right">
+                                <Button Content="Use Secondary Drive (D:\VydrixCache)" Command="{Binding RelocateToSecondaryDriveCommand}" Padding="8,4" FontSize="11" Margin="0,0,8,0" />
+                                <Button Content="Use Default C: (512 MiB Cap)" Command="{Binding RelocateToDefaultCCommand}" Padding="8,4" FontSize="11" />
+                            </StackPanel>
+                        </DockPanel>
+                    </Border>
+                </StackPanel>
+            </Border>
+
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="1.2*" />
@@ -11,27 +107,6 @@
                 <Border Style="{StaticResource Card}">
                     <StackPanel>
                         <TextBlock Text="Storage Policy &amp; Budget" Style="{StaticResource H2}" />
-
-                        <!-- VYDRIX 3.0 CLOUD-FIRST: C: Guardian System Shield Card -->
-                        <Border Background="#10252D" BorderBrush="#00E5FF" BorderThickness="1" CornerRadius="6" Padding="12" Margin="0,4,0,10">
-                            <StackPanel>
-                                <DockPanel LastChildFill="False">
-                                    <StackPanel Orientation="Horizontal">
-                                        <TextBlock Text="🛡️ C: GUARDIAN SYSTEM SHIELD" FontWeight="Bold" Foreground="#00E5FF" VerticalAlignment="Center" />
-                                        <Border Background="#2000E5FF" CornerRadius="4" Padding="6,2" Margin="10,0,0,0">
-                                            <TextBlock Text="{Binding CGuardianStatusText}" FontSize="11" Foreground="#00E5FF" FontWeight="SemiBold" />
-                                        </Border>
-                                    </StackPanel>
-                                    <StackPanel Orientation="Horizontal" DockPanel.Dock="Right">
-                                        <Button Content="Dry-Run Report" Command="{Binding RunGuardianDryRunCommand}" Padding="8,3" FontSize="11" Margin="0,0,6,0" />
-                                        <Button Content="Safe Reclaim" Command="{Binding ExecuteGuardianCleanupCommand}" Padding="8,3" FontSize="11" />
-                                    </StackPanel>
-                                </DockPanel>
-                                <TextBlock Text="{Binding CGuardianFreeSpaceText, StringFormat='Available Headroom: {0}'}" FontSize="11" Foreground="{StaticResource Text}" Margin="0,4,0,0" />
-                                <TextBlock Text="{Binding CGuardianRelocationText, StringFormat='Relocation Target: {0}'}" FontSize="11" Foreground="{StaticResource Accent}" Margin="0,2,0,0" />
-                                <TextBlock Text="{Binding CGuardianBreakdownText, StringFormat='VYDRIX C: Footprint: {0}'}" FontSize="11" Foreground="{StaticResource Dim}" Margin="0,2,0,0" />
-                            </StackPanel>
-                        </Border>
 
                         <!-- VYDRIX 3.0 PHANTOM SSD: Phantom Pulse & Latency Shield Card -->
                         <Border Background="#141E38" BorderBrush="#2D3B60" BorderThickness="1" CornerRadius="6" Padding="12" Margin="0,4,0,10">
@@ -162,7 +237,7 @@
                 </StackPanel>
             </Grid>
 
-            <!-- Phase 6: Storage Reclamation Advisor -->
+            <!-- Storage Reclamation Advisor -->
             <Border Style="{StaticResource Card}">
                 <StackPanel>
                     <TextBlock Text="Storage Reclamation Advisor (Opt-In Analysis)" Style="{StaticResource H2}" />

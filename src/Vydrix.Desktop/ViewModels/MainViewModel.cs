@@ -57,9 +57,9 @@ public sealed partial class MainViewModel : ObservableObject
         var sessions = Host.Mounts.Sessions;
         DrivesStatus = sessions.Count == 0 ? "No drives mounted"
             : string.Join("  ", sessions.Select(s => $"{s.DriveLetter}: {s.State}"));
-        RateStatus = m.DownloadBytesPerSec is { } r ? $"↓ {Bandwidth.BytesPerSecondToMbps(r):0.0} Mbps" : "";
+        RateStatus = m.DownloadBytesPerSec is { } r ? $"\u2193 {Bandwidth.BytesPerSecondToMbps(r):0.0} Mbps" : "";
         EngineStatus = Host.DiskPressure ? "Prefetch paused (disk space)" : Host.Engine.Scheduler.Active > 0 ? $"Prefetching ({Host.Engine.Queue.Count} queued)" : "";
-        GameStatus = Host.CurrentLaunch is { State: Games.LaunchState.Running } l ? $"▶ {l.Game.Name}" : "";
+        GameStatus = Host.CurrentLaunch is { State: Games.LaunchState.Running } l ? $"\u25B6 {l.Game.Name}" : "";
     }
 
     private static void Ui(Action a)

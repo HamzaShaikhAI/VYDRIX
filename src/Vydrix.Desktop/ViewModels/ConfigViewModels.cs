@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Globalization;
+using System.IO;
 using System.Text.Json;
 using Vydrix.App;
 using Vydrix.Cache;
@@ -15,10 +16,10 @@ namespace Vydrix.Desktop.ViewModels;
 
 public sealed record CachedFileRow(string Mount, string Path, string Cached, string Physical, string Logical, string LastAccess, bool Dirty, double Fraction);
 
-/// <summary>Smart Cache: budget, protected free space, usage (physical vs logical), pinning and safe cleanup.</summary>
+/// <summary>Smart Cache: budget, protected free space, usage (physical vs logical), pinning, footprint metrics and safe cleanup.</summary>
 public sealed partial class SmartCacheViewModel : PageViewModel
 {
-    public SmartCacheViewModel(AppHost host) : base(host, "Smart Cache", "î¶¢") { }
+    public SmartCacheViewModel(AppHost host) : base(host, "Smart Cache", "\uEDA2") { }
 
     public ObservableCollection<CachedFileRow> Files { get; } = new();
     public ObservableCollection<string> Pinned { get; } = new();
@@ -59,6 +60,24 @@ public sealed partial class SmartCacheViewModel : PageViewModel
     [ObservableProperty] private string _advisorFolder = "";
     [ObservableProperty] private string _advisorSummary = "Select a local folder below to analyze potential storage reclamation.";
     [ObservableProperty] private CachedFileRow? _selectedFile;
+
+    // Phase 4: Storage Footprint & Shield Metrics
+    [ObservableProperty] private VydrixStorageFootprint? _footprint;
+    [ObservableProperty] private string _installedAppFormatted = Fmt.NA;
+    [ObservableProperty] private string _persistentDataFormatted = Fmt.NA;
+    [ObservableProperty] private string _logsAndDiagFormatted = Fmt.NA;
+    [ObservableProperty] private string _currentCacheFormatted = Fmt.NA;
+    [ObservableProperty] private string _peakCacheFormatted = Fmt.NA;
+    [ObservableProperty] private string _tempDataFormatted = Fmt.NA;
+    [ObservableProperty] private string _updateStagingFormatted = Fmt.NA;
+    [ObservableProperty] private string _totalCFormatted = Fmt.NA;
+    [ObservableProperty] private string _totalDFormatted = Fmt.NA;
+    [ObservableProperty] private string _cloudProjectsFormatted = Fmt.NA;
+    [ObservableProperty] private string _footprintStatusSummary = "Healthy (< 500 MB on C:)";
+    [ObservableProperty] private string _footprintTone = "ok";
+    [ObservableProperty] private string _cachePlacementStatusText = "Active: Secondary Drive (D:\\VydrixCache)";
+    [ObservableProperty] private bool _isCacheOnSecondary = true;
+    [ObservableProperty] private string _cacheFallbackWarningText = "";
 
     public override void OnShown()
     {
@@ -104,12 +123,12 @@ public sealed partial class SmartCacheViewModel : PageViewModel
                         cached += f.CachedBytes;
                         if (f.Dirty) dirty++;
                         rows.Add(new CachedFileRow(m.DisplayName, f.RemotePath, $"{f.CachedFraction:P0} ({ByteSize.Format(f.CachedBytes)})", ByteSize.Format(f.PhysicalBytes),
-                            ByteSize.Format(f.LogicalSize), f.LastAccess == default ? "â€”" : f.LastAccess.ToString("g"), f.Dirty, f.CachedFraction));
+                            ByteSize.Format(f.LogicalSize), f.LastAccess == default ? "—" : f.LastAccess.ToString("g"), f.Dirty, f.CachedFraction));
                     }
                 }
                 var (free, total) = DiskInfo.FreeSpace(root);
                 var (fs, sparse) = DiskInfo.VolumeFileSystem(root);
-                return ((phys, logical, cached, dirty, free, total), rows, $"{DiskInfo.VolumeRoot(root)} Â· {fs}{(sparse ? " (sparse files supported)" : " â€” sparse files NOT supported")} Â· {ByteSize.Format(free)} free of {ByteSize.Format(total)}");
+                return ((phys, logical, cached, dirty, free, total), rows, $"{DiskInfo.VolumeRoot(root)} · {fs}{(sparse ? " (sparse files supported)" : " — sparse files NOT supported")} · {ByteSize.Format(free)} free of {ByteSize.Format(total)}");
             });
             VolumeInfo = vol;
             Files.ReplaceWith(files.OrderByDescending(f => f.LastAccess).Take(500));
@@ -150,11 +169,36 @@ public sealed partial class SmartCacheViewModel : PageViewModel
             CGuardianRelocationText = cStatus.RelocationOpportunities.Count > 0 ? cStatus.RelocationOpportunities[0] : "None detected";
             CGuardianBreakdownText = string.Join(", ", cStatus.TopConsumers.Take(3).Select(c => $"{c.Name}: {ByteSize.Format(c.SizeBytes)}"));
 
+            // Full Footprint Measurement
+            var fp = Host.CGuardian.MeasureFullFootprint(root);
+            Footprint = fp;
+            InstalledAppFormatted = ByteSize.Format(fp.InstalledAppBytes);
+            PersistentDataFormatted = ByteSize.Format(fp.PersistentDataBytes);
+            LogsAndDiagFormatted = ByteSize.Format(fp.LogsAndDiagBytes);
+            CurrentCacheFormatted = ByteSize.Format(fp.CurrentCacheBytes);
+            PeakCacheFormatted = ByteSize.Format(fp.PeakCacheBytes);
+            TempDataFormatted = ByteSize.Format(fp.TempDataBytes);
+            UpdateStagingFormatted = ByteSize.Format(fp.UpdateStagingBytes);
+            TotalCFormatted = ByteSize.Format(fp.TotalCBytes);
+            TotalDFormatted = ByteSize.Format(fp.TotalDBytes);
+            CloudProjectsFormatted = ByteSize.Format(fp.CloudProjectBytes);
+            FootprintStatusSummary = fp.StatusSummary;
+            FootprintTone = fp.IsBlocker ? "error" : fp.IsWarning ? "warn" : "ok";
+
+            // Cache Placement Truth
+            var resolvedRoot = Host.Paths.ResolveActiveCacheRoot(Host.Settings, out var isRelocated, out var fallbackWarn);
+            IsCacheOnSecondary = isRelocated;
+            CacheFallbackWarningText = fallbackWarn ?? "";
+            CachePlacementStatusText = isRelocated
+                ? $"Physical Secondary Drive ({DiskInfo.VolumeRoot(resolvedRoot)})"
+                : $"System Drive C: {(fallbackWarn != null ? "[FALLBACK ACTIVE]" : "")}";
+
             var isZf = Host.Settings.Cache.ZeroFootprintMode;
             Usage.ReplaceWith([
                 new("C: Guardian Status", $"{CGuardianStatusText} · {CGuardianFreeSpaceText}", cStatus.IsCritical ? "error" : cStatus.IsWarning ? "warn" : "ok"),
+                new("VYDRIX Footprint on C:", TotalCFormatted, fp.IsBlocker ? "error" : fp.IsWarning ? "warn" : "ok"),
+                new("Active Cache Volume", CachePlacementStatusText, isRelocated ? "ok" : "warn"),
                 new("C: Consumption Rate", CGuardianConsumptionRateText, cStatus.ConsumptionRateMBPerMin > 100 ? "warn" : "muted"),
-                new("C: Secondary Relocation", CGuardianRelocationText, "accent"),
                 new("Phantom Pulse Mode", PulseModeText, "ok"),
                 new("Latency Shield Status", $"{Host.LatencyShield.CurrentAverageRttMs:F0}ms RTT · {Host.LatencyShield.Concurrency} streams", "accent"),
                 new("Tier A Hot Memory Cache", MemoryCacheUsageText, Host.CacheManager.HotMemoryCache.Enabled ? "ok" : "muted"),
@@ -164,21 +208,67 @@ public sealed partial class SmartCacheViewModel : PageViewModel
                 new("Prefetching Policy", isZf ? "OFF (Demand reads only)" : (Host.Settings.Streaming.PredictionEnabled ? "Active (Predictive)" : "Off"), isZf ? "ok" : "accent"),
                 new("Periodic Maintenance", "Every 2 hours"),
                 new("Post-Game Cleanup", Host.Settings.Cache.AutoReclaimOnGameExit ? "Enabled (Automatic)" : "Disabled"),
-                new("Active Game Sessions", Host.ActiveLaunches.Count.ToString()),
                 new("Resolved Cache Path", Path.GetFullPath(root)),
                 new("Metadata Headroom", ByteSize.Format(Host.Settings.Cache.MetadataReserveBytes)),
-                new("In-Flight Reserved", ByteSize.Format(Host.CacheManager.InFlightReservedBytes)),
                 new("Physical on disk", ByteSize.Format(stats.PhysicalAllocatedBytes)),
                 new("Avoided storage (saved)", ByteSize.Format(stats.AvoidedStorageBytes), "ok"),
                 new("Cache hit ratio", $"{stats.CacheHitRatio:P1}"),
-                new("Persistent cached blocks", ByteSize.Format(stats.PersistentCacheBytes)),
-                new("Transient cached blocks", ByteSize.Format(stats.TransientCacheBytes)),
                 new("Protected (in-use / dirty)", ByteSize.Format(stats.ProtectedBytes)),
                 new("Low-space mode status", stats.LowSpaceActive ? "ACTIVE (scaling down budget)" : "Normal (healthy reserve)", stats.LowSpaceActive ? "warn" : "muted"),
-                new("Volume filesystem", stats.CacheVolumeFileSystem),
                 new("Files with pending uploads", usage.dirty.ToString(), usage.dirty > 0 ? "warn" : "muted"),
             ]);
         });
+    }
+
+    [RelayCommand]
+    private async Task RelocateToSecondaryDrive()
+    {
+        if (Host.Mounts.Sessions.Count > 0)
+        {
+            Say("Please unmount all cloud drives before changing cache location.", "warn");
+            return;
+        }
+
+        var secondaryDrive = DriveInfo.GetDrives()
+            .FirstOrDefault(d => d.IsReady &&
+                                !d.Name.StartsWith("C", StringComparison.OrdinalIgnoreCase) &&
+                                !d.DriveType.ToString().Contains("CDRom") &&
+                                d.AvailableFreeSpace > 5L * 1024 * 1024 * 1024);
+
+        if (secondaryDrive == null)
+        {
+            Say("No eligible secondary physical drive with at least 5 GB free space was detected.", "error");
+            return;
+        }
+
+        var targetPath = Path.Combine(secondaryDrive.RootDirectory.FullName, "VydrixCache");
+        Directory.CreateDirectory(targetPath);
+
+        Host.Settings.Broker.DefaultCachePlacement = CachePlacementOption.SecondaryPhysicalDrive;
+        Host.Settings.Cache.CacheRoot = targetPath;
+        CacheRoot = targetPath;
+        Host.SaveSettings();
+
+        Say($"Cache successfully relocated to secondary physical drive: {targetPath}.", "ok");
+        await RefreshAsync();
+    }
+
+    [RelayCommand]
+    private async Task RelocateToDefaultC()
+    {
+        if (Host.Mounts.Sessions.Count > 0)
+        {
+            Say("Please unmount all cloud drives before changing cache location.", "warn");
+            return;
+        }
+
+        Host.Settings.Broker.DefaultCachePlacement = CachePlacementOption.BoundedC;
+        Host.Settings.Cache.CacheRoot = Host.Paths.DefaultCacheRoot;
+        CacheRoot = Host.Paths.DefaultCacheRoot;
+        Host.SaveSettings();
+
+        Say("Cache relocated to default C: location. Zero Footprint Mode keeps C: strictly bounded.", "ok");
+        await RefreshAsync();
     }
 
     [RelayCommand]
@@ -262,11 +352,11 @@ public sealed partial class SmartCacheViewModel : PageViewModel
     [RelayCommand]
     private void Apply()
     {
-        if (!double.TryParse(BudgetGb, NumberStyles.Float, CultureInfo.InvariantCulture, out var b) || b < 1
+        if (!double.TryParse(BudgetGb, NumberStyles.Float, CultureInfo.InvariantCulture, out var b) || b < 0.5
             || !double.TryParse(ReserveGb, NumberStyles.Float, CultureInfo.InvariantCulture, out var r) || r < 2
             || !int.TryParse(MaxAgeDays, out var age) || age < 1)
         {
-            Say("Enter a budget of at least 1 GB, a reserve of at least 2 GB and a maximum age of at least 1 day.", "error");
+            Say("Enter a budget of at least 0.5 GB, a reserve of at least 2 GB and a maximum age of at least 1 day.", "error");
             return;
         }
         var c = Host.Settings.Cache;
@@ -297,7 +387,6 @@ public sealed partial class SmartCacheViewModel : PageViewModel
             Say($"Volume validation failed: {string.Join("; ", validation.Errors)}", "error");
             return;
         }
-
         c.BudgetBytes = (long)(b * ByteSize.GiB);
         c.MinFreeSpaceBytes = (long)(r * ByteSize.GiB);
         c.MaxAge = TimeSpan.FromDays(age);
@@ -454,7 +543,7 @@ public sealed partial class SmartCacheViewModel : PageViewModel
 /// <summary>Settings: network, prediction, startup, rclone and advanced VFS tuning.</summary>
 public sealed partial class SettingsViewModel : PageViewModel
 {
-    public SettingsViewModel(AppHost host) : base(host, "Settings", "îœ“") { }
+    public SettingsViewModel(AppHost host) : base(host, "Settings", "\uE713") { }
 
     [ObservableProperty] private string _declaredMbps = "70";
     [ObservableProperty] private string _measured = "";
@@ -487,7 +576,7 @@ public sealed partial class SettingsViewModel : PageViewModel
         var s = Host.Settings;
         DeclaredMbps = s.Network.DeclaredDownloadMbps.ToString(CultureInfo.InvariantCulture);
         Measured = s.Network.MeasuredDownloadMbps is { } m
-            ? $"Last measured: {m:0.0} Mbps ({Bandwidth.BytesPerSecondToMBps(Bandwidth.MbpsToBytesPerSecond(m)):0.00} MB/s) on {s.Network.MeasuredAt:g} â€” used instead of the declared value."
+            ? $"Last measured: {m:0.0} Mbps ({Bandwidth.BytesPerSecondToMBps(Bandwidth.MbpsToBytesPerSecond(m)):0.00} MB/s) on {s.Network.MeasuredAt:g} — used instead of the declared value."
             : "Not measured yet (Optimize & Prepare measures real provider throughput).";
         BackgroundShare = (s.Network.BackgroundShare * 100).ToString("0");
         HardLimitMbps = s.Network.HardLimitMbps.ToString(CultureInfo.InvariantCulture);
@@ -501,7 +590,7 @@ public sealed partial class SettingsViewModel : PageViewModel
         KeepMounts = s.KeepMountsAfterExit;
         EncryptConfig = s.EncryptRcloneConfig;
         RclonePath = s.RclonePathOverride ?? "";
-        RcloneInfo = Host.Rclone is { } r ? $"{r.Version} Â· {r.Path} Â· config {(Host.RcloneConfig.IsEncrypted ? "encrypted (key protected by Windows DPAPI)" : "not encrypted")}" : "rclone not found";
+        RcloneInfo = Host.Rclone is { } r ? $"{r.Version} · {r.Path} · config {(Host.RcloneConfig.IsEncrypted ? "encrypted (key protected by Windows DPAPI)" : "not encrypted")}" : "rclone not found";
         LocalGamesRoot = Host.Paths.LocalGamesRootFor(s);
         BufferSize = ByteSize.ToRclone(s.Cache.BufferSizeBytes);
         ReadAhead = ByteSize.ToRclone(s.Cache.ReadAheadBytes);
@@ -571,7 +660,7 @@ public sealed record LogRow(string Time, string Level, string Tone, string Sourc
 /// <summary>Diagnostics: dependency status, warnings/errors, rclone logs and sanitized report export.</summary>
 public sealed partial class DiagnosticsViewModel : PageViewModel
 {
-    public DiagnosticsViewModel(AppHost host) : base(host, "Diagnostics", "î¤") { }
+    public DiagnosticsViewModel(AppHost host) : base(host, "Diagnostics", "\uE9F9") { }
 
     public ObservableCollection<KeyValueRow> Dependencies { get; } = new();
     public ObservableCollection<LogRow> Logs { get; } = new();
@@ -586,7 +675,7 @@ public sealed partial class DiagnosticsViewModel : PageViewModel
     public override void OnShown()
     {
         Host.RefreshDependencies();
-        Dependencies.ReplaceWith(Host.Dependencies.Select(d => new KeyValueRow(d.Name, d.Detail + (d.Remedy != null ? "  â†’  " + d.Remedy : ""),
+        Dependencies.ReplaceWith(Host.Dependencies.Select(d => new KeyValueRow(d.Name, d.Detail + (d.Remedy != null ? "  →  " + d.Remedy : ""),
             d.State switch { DependencyState.Ok => "ok", DependencyState.Warning => "warn", _ => "error" })));
         LoadLogs();
         var lines = new List<string>();
@@ -647,6 +736,3 @@ public sealed partial class DiagnosticsViewModel : PageViewModel
 
     [RelayCommand] private void Refresh() => OnShown();
 }
-
-
-

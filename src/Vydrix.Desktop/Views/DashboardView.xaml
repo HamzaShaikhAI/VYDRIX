@@ -46,7 +46,7 @@
                     </StackPanel>
                 </Border>
 
-                <!-- Brand Hero Card (Mockup Match) -->
+                <!-- Brand Hero Card -->
                 <Border Grid.Column="1" Style="{StaticResource Card}" Margin="8,0,0,0">
                     <StackPanel Margin="8,6" VerticalAlignment="Center">
                         <Image Source="pack://application:,,,/Assets/vydrix-logo-dark.png" Height="64" HorizontalAlignment="Left" Margin="0,4,0,12" RenderOptions.BitmapScalingMode="HighQuality" />
@@ -67,12 +67,19 @@
                 </ItemsControl.ItemTemplate>
             </ItemsControl>
 
-            <!-- KPI row -->
-            <UniformGrid Columns="4">
+            <!-- KPI row: 5 Columns with C: System Footprint -->
+            <UniformGrid Columns="5">
                 <Border Style="{StaticResource Card}">
                     <StackPanel>
                         <TextBlock Text="CONNECTION HEALTH" Style="{StaticResource Label}" />
                         <TextBlock Text="{Binding Health}" Style="{StaticResource Body}" FontSize="15" FontWeight="SemiBold" Foreground="{Binding HealthTone, Converter={StaticResource Tone}}" />
+                    </StackPanel>
+                </Border>
+                <Border Style="{StaticResource Card}">
+                    <StackPanel>
+                        <TextBlock Text="C: SYSTEM FOOTPRINT" Style="{StaticResource Label}" />
+                        <TextBlock Text="{Binding CFootprintText}" Style="{StaticResource Metric}" Foreground="{Binding CFootprintTone, Converter={StaticResource Tone}}" />
+                        <TextBlock Text="{Binding CachePlacementSummary}" Style="{StaticResource Caption}" Margin="0,4,0,0" TextTrimming="CharacterEllipsis" ToolTip="{Binding CachePlacementSummary}" />
                     </StackPanel>
                 </Border>
                 <Border Style="{StaticResource Card}">
@@ -84,7 +91,7 @@
                 </Border>
                 <Border Style="{StaticResource Card}">
                     <StackPanel>
-                        <TextBlock Text="CACHE HIT RATE (THIS RUN)" Style="{StaticResource Label}" />
+                        <TextBlock Text="CACHE HIT RATE" Style="{StaticResource Label}" />
                         <TextBlock Text="{Binding HitRate}" Style="{StaticResource Metric}" />
                     </StackPanel>
                 </Border>

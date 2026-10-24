@@ -15,7 +15,7 @@ public sealed partial class AcceleratorViewModel : PageViewModel
 {
     private readonly ConcurrentQueue<AccessEvent> _recent = new();
 
-    public AcceleratorViewModel(AppHost host) : base(host, "Game Accelerator", "")
+    public AcceleratorViewModel(AppHost host) : base(host, "Game Accelerator", "\uE945")
     {
         host.Mounts.ReadObserved += e =>
         {
@@ -122,7 +122,7 @@ public sealed partial class AcceleratorViewModel : PageViewModel
 /// <summary>Performance Monitor: real network and filesystem statistics over time.</summary>
 public sealed partial class PerformanceViewModel : PageViewModel
 {
-    public PerformanceViewModel(AppHost host) : base(host, "Performance Monitor", "") { }
+    public PerformanceViewModel(AppHost host) : base(host, "Performance Monitor", "\uE9D9") { }
 
     public ObservableCollection<KeyValueRow> Totals { get; } = new();
     public ObservableCollection<KeyValueRow> SessionHistory { get; } = new();

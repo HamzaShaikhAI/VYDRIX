@@ -34,11 +34,15 @@ public sealed class MemoryLogSink
 }
 
 /// <summary>
-/// Logger provider writing redacted lines to a daily log file and to an in-memory sink. File writes are done on a
-/// background thread so logging never blocks the UI or I/O paths.
+/// Logger provider writing redacted lines to a bounded log file and to an in-memory sink. File writes are done on a
+/// background thread so logging never blocks the UI or I/O paths. Automatically bounds log size to 5 MB per file
+/// and caps total log directory to 15 MB.
 /// </summary>
 public sealed class AppLoggerProvider : ILoggerProvider
 {
+    private const long MaxLogFileSizeBytes = 5 * 1024 * 1024; // 5 MiB
+    private const long MaxTotalLogSizeBytes = 15 * 1024 * 1024; // 15 MiB
+
     private readonly string _directory;
     private readonly MemoryLogSink _sink;
     private readonly LogLevel _minLevel;
@@ -94,11 +98,23 @@ public sealed class AppLoggerProvider : ILoggerProvider
 
     private void WriteLoop()
     {
+        int writeCount = 0;
         foreach (var line in _queue.GetConsumingEnumerable())
         {
             try
             {
-                File.AppendAllText(CurrentLogFile, line + Environment.NewLine);
+                var currentFile = CurrentLogFile;
+                if (++writeCount % 100 == 0 && File.Exists(currentFile))
+                {
+                    var info = new FileInfo(currentFile);
+                    if (info.Length > MaxLogFileSizeBytes)
+                    {
+                        var prevFile = currentFile + ".prev";
+                        File.Move(currentFile, prevFile, overwrite: true);
+                    }
+                }
+
+                File.AppendAllText(currentFile, line + Environment.NewLine);
             }
             catch (IOException)
             {
@@ -111,11 +127,32 @@ public sealed class AppLoggerProvider : ILoggerProvider
     {
         try
         {
-            foreach (var f in Directory.EnumerateFiles(_directory, "*.*").Where(x => x.Contains("vydrix-") || x.Contains("cloudplayx-")))
-                if (File.GetLastWriteTime(f) < DateTime.Now.AddDays(-14)) File.Delete(f);
+            if (!Directory.Exists(_directory)) return;
+
+            var logFiles = new DirectoryInfo(_directory)
+                .GetFiles("*.*")
+                .Where(f => f.Name.Contains(".log", StringComparison.OrdinalIgnoreCase))
+                .OrderByDescending(f => f.LastWriteTimeUtc)
+                .ToList();
+
+            long totalBytes = 0;
+            foreach (var f in logFiles)
+            {
+                // Delete logs older than 3 days
+                if (f.LastWriteTimeUtc < DateTime.UtcNow.AddDays(-3))
+                {
+                    try { f.Delete(); continue; } catch { }
+                }
+
+                totalBytes += f.Length;
+                // Cap total log directory to 15 MiB
+                if (totalBytes > MaxTotalLogSizeBytes)
+                {
+                    try { f.Delete(); } catch { }
+                }
+            }
         }
-        catch (IOException) { }
-        catch (UnauthorizedAccessException) { }
+        catch { }
     }
 
     public void Dispose()

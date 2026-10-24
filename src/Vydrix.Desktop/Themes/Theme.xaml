@@ -8,8 +8,8 @@
     <Color x:Key="Surface3Color">#20252F</Color>
     <Color x:Key="BorderColor">#262C37</Color>
     <Color x:Key="TextColor">#E7EAF0</Color>
-    <Color x:Key="MutedColor">#8B94A5</Color>
-    <Color x:Key="DimColor">#5D6677</Color>
+    <Color x:Key="MutedColor">#9FAABF</Color>
+    <Color x:Key="DimColor">#7E8B9F</Color>
     <Color x:Key="AccentColor">#3B82F6</Color>
     <Color x:Key="AccentHoverColor">#5B9BFF</Color>
     <Color x:Key="AccentPressedColor">#2F6FD6</Color>

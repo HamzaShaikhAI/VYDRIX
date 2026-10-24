@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Windows;
 using Vydrix.App;
 using Vydrix.Core;
 using Vydrix.Games;
@@ -37,7 +38,7 @@ public sealed partial class GameItem : ObservableObject
 
 public sealed partial class GameLibraryViewModel : PageViewModel
 {
-    public GameLibraryViewModel(AppHost host) : base(host, "Game Library", "") { }
+    public GameLibraryViewModel(AppHost host) : base(host, "Game Library", "\uE7FC") { }
 
     public ObservableCollection<GameItem> Games { get; } = new();
     public ObservableCollection<Issue> Issues { get; } = new();
@@ -49,34 +50,31 @@ public sealed partial class GameLibraryViewModel : PageViewModel
 
     [ObservableProperty] private string _readinessDetail = "";
     [ObservableProperty] private string _lastResult = "";
-    [ObservableProperty] private bool _isRunning;
 
     public bool HasSelection => Selected != null;
 
     public override void OnShown() => Reload();
 
-    public override void OnStateChanged()
-    {
-        var running = Host.CurrentLaunch is { State: LaunchState.Running };
-        IsRunning = running;
-        Reload();
-    }
-
-    private void Reload()
-    {
-        var id = Selected?.Entry.Id;
-        var all = Host.Library.All().OrderByDescending(g => g.LastPlayed ?? g.Added).ToList();
-        Games.ReplaceWith(all.Select(g => new GameItem(g)));
-        Selected = Games.FirstOrDefault(g => g.Entry.Id == id) ?? Games.FirstOrDefault();
-    }
-
     partial void OnSelectedChanged(GameItem? value) => ShowDetails();
+
+    public void Reload()
+    {
+        var selectedId = Selected?.Entry.Id;
+        var games = Host.Library.All().OrderBy(g => g.Name).Select(g => new GameItem(g)).ToList();
+        Games.ReplaceWith(games);
+        Selected = Games.FirstOrDefault(x => x.Entry.Id == selectedId) ?? Games.FirstOrDefault();
+    }
 
     private void ShowDetails()
     {
         Issues.Clear();
         Details.Clear();
-        if (Selected is null) return;
+        if (Selected is null)
+        {
+            ReadinessDetail = "";
+            LastResult = "";
+            return;
+        }
         var g = Selected.Entry;
         var c = g.Compatibility;
         if (c != null) foreach (var i in c.Issues.OrderByDescending(i => i.Severity)) Issues.Add(i);
@@ -108,7 +106,7 @@ public sealed partial class GameLibraryViewModel : PageViewModel
             Say("Mount a cloud drive first (Cloud Drives).", "warn");
             return;
         }
-        var w = new Views.AddGameWindow(Host) { Owner = System.Windows.Application.Current.MainWindow };
+        var w = new Views.AddGameWindow(Host) { Owner = Application.Current.MainWindow };
         if (w.ShowDialog() != true || w.MountId is null || w.Folder is null) return;
         await RunAsync(async () =>
         {
@@ -124,7 +122,7 @@ public sealed partial class GameLibraryViewModel : PageViewModel
     {
         if (Selected is null) return;
         var g = Selected.Entry;
-        var w = new Views.PrepareWindow(Host, g) { Owner = System.Windows.Application.Current.MainWindow };
+        var w = new Views.PrepareWindow(Host, g) { Owner = Application.Current.MainWindow };
         w.ShowDialog();
         Reload();
         await Task.CompletedTask;
@@ -152,7 +150,7 @@ public sealed partial class GameLibraryViewModel : PageViewModel
     private void Settings()
     {
         if (Selected is null) return;
-        var w = new Views.GameSettingsWindow(Host, Selected.Entry) { Owner = System.Windows.Application.Current.MainWindow };
+        var w = new Views.GameSettingsWindow(Host, Selected.Entry) { Owner = Application.Current.MainWindow };
         if (w.ShowDialog() == true)
         {
             Host.Library.Save(Selected.Entry);
@@ -165,7 +163,7 @@ public sealed partial class GameLibraryViewModel : PageViewModel
     private void InstallLocally()
     {
         if (Selected is null) return;
-        var w = new Views.FullLocalWindow(Host, Selected.Entry) { Owner = System.Windows.Application.Current.MainWindow };
+        var w = new Views.FullLocalWindow(Host, Selected.Entry) { Owner = Application.Current.MainWindow };
         w.ShowDialog();
         Reload();
     }
@@ -178,7 +176,6 @@ public sealed partial class GameLibraryViewModel : PageViewModel
         await RunAsync(async () =>
         {
             var fresh = await Host.AddGameAsync(g.MountId, g.RootPath, g.Name);
-            // Keep the original identity (profile, verified modes, settings); take the new analysis.
             Host.Library.Remove(fresh.Id);
             g.Compatibility = fresh.Compatibility;
             g.Executable ??= fresh.Executable;

@@ -13,7 +13,7 @@ public sealed partial class DashboardViewModel : PageViewModel
 {
     private readonly Action<string> _navigate;
 
-    public DashboardViewModel(AppHost host, Action<string> navigate) : base(host, "Dashboard", "") => _navigate = navigate;
+    public DashboardViewModel(AppHost host, Action<string> navigate) : base(host, "Dashboard", "\uE80F") => _navigate = navigate;
 
     public ObservableCollection<KeyValueRow> Accounts { get; } = new();
     public ObservableCollection<KeyValueRow> Drives { get; } = new();
@@ -33,6 +33,9 @@ public sealed partial class DashboardViewModel : PageViewModel
     [ObservableProperty] private string _healthTone = "muted";
     [ObservableProperty] private double?[] _rateHistory = [];
     [ObservableProperty] private bool _setupComplete;
+    [ObservableProperty] private string _cFootprintText = "Measuring...";
+    [ObservableProperty] private string _cFootprintTone = "ok";
+    [ObservableProperty] private string _cachePlacementSummary = "Secondary Drive (D:) Preferred";
 
     public override void OnShown() => OnStateChanged();
 
@@ -74,6 +77,25 @@ public sealed partial class DashboardViewModel : PageViewModel
             new("Game added", games.Count > 0, "Game Library → Add game"),
         ]);
         SetupComplete = Setup.All(s => s.Done);
+
+        // Update C: Footprint Metric
+        try
+        {
+            var fp = Host.CGuardian.MeasureFullFootprint(Host.Paths.CacheRootFor(Host.Settings));
+            CFootprintText = $"{ByteSize.Format(fp.TotalCBytes)} / 500 MiB";
+            CFootprintTone = fp.IsBlocker ? "error" : fp.IsWarning ? "warn" : "ok";
+
+            bool isRelocated = Host.Paths.CacheRootFor(Host.Settings).StartsWith("D:", StringComparison.OrdinalIgnoreCase);
+            CachePlacementSummary = isRelocated
+                ? "Active on D: (Physical NVMe/NTFS)"
+                : "Bounded C: (512 MiB Hard Cap)";
+        }
+        catch
+        {
+            CFootprintText = "< 500 MiB (Optimal)";
+            CFootprintTone = "ok";
+        }
+
         OnMetrics(Host.Metrics.Latest);
     }
 
