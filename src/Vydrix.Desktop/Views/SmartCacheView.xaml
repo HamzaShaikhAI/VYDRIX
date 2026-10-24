@@ -12,6 +12,23 @@
                     <StackPanel>
                         <TextBlock Text="Storage Policy &amp; Budget" Style="{StaticResource H2}" />
 
+                        <!-- VYDRIX 3.0 PHANTOM SSD: Phantom Pulse & Latency Shield Card -->
+                        <Border Background="#141E38" BorderBrush="#2D3B60" BorderThickness="1" CornerRadius="6" Padding="12" Margin="0,4,0,10">
+                            <StackPanel>
+                                <DockPanel LastChildFill="False">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="🚀 PHANTOM SSD INTELLIGENCE" FontWeight="Bold" Foreground="#00F0FF" VerticalAlignment="Center" />
+                                        <Border Background="#2000F0FF" CornerRadius="4" Padding="6,2" Margin="10,0,0,0">
+                                            <TextBlock Text="{Binding PulseModeText}" FontSize="11" Foreground="#00F0FF" FontWeight="SemiBold" />
+                                        </Border>
+                                    </StackPanel>
+                                    <Button DockPanel.Dock="Right" Content="Toggle Tier A RAM Cache" Command="{Binding ToggleMemoryHotCacheCommand}" Padding="8,3" FontSize="11" />
+                                </DockPanel>
+                                <TextBlock Text="{Binding PulseReason}" FontSize="11" Foreground="{StaticResource Dim}" Margin="0,4,0,0" TextWrapping="Wrap" />
+                                <TextBlock Text="{Binding BottleneckDiagnosis}" FontSize="11" Foreground="{StaticResource Accent}" Margin="0,4,0,0" TextWrapping="Wrap" />
+                            </StackPanel>
+                        </Border>
+
                         <!-- Zero Footprint Mode Banner -->
                         <Border Background="#1A00F0FF" BorderBrush="#3300F0FF" BorderThickness="1" CornerRadius="6" Padding="12" Margin="0,4,0,14">
                             <StackPanel>
@@ -78,6 +95,17 @@
                         </StackPanel>
                         <TextBlock Text="{Binding LastCleanupInfo, StringFormat='Last cleanup: {0}'}" Style="{StaticResource Caption}" Margin="0,10,0,0" />
                         <TextBlock Text="{Binding SafetyAlert}" Foreground="{StaticResource Warning}" FontWeight="SemiBold" Margin="0,4,0,0" TextWrapping="Wrap" />
+
+                        <!-- Cloud SSD Self-Test Card -->
+                        <Border Background="#10172A" BorderBrush="#1E293B" BorderThickness="1" CornerRadius="6" Padding="12" Margin="0,14,0,0">
+                            <StackPanel>
+                                <DockPanel LastChildFill="False">
+                                    <TextBlock Text="Cloud SSD Performance Self-Test" FontWeight="SemiBold" Foreground="{StaticResource Text}" VerticalAlignment="Center" />
+                                    <Button DockPanel.Dock="Right" Content="Run Self-Test Now" Command="{Binding RunSelfTestCommand}" Padding="10,4" Style="{StaticResource Primary}" />
+                                </DockPanel>
+                                <TextBlock Text="{Binding SelfTestSummary}" FontSize="11" Foreground="{StaticResource Dim}" Margin="0,6,0,0" TextWrapping="Wrap" />
+                            </StackPanel>
+                        </Border>
                     </StackPanel>
                 </Border>
 

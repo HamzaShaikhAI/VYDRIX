@@ -38,6 +38,14 @@ public sealed partial class SmartCacheViewModel : PageViewModel
     [ObservableProperty] private string _zeroFootprintToggleText = "Enable Zero Footprint";
     [ObservableProperty] private string _lastCleanupInfo = "Never";
     [ObservableProperty] private string _safetyAlert = "";
+    [ObservableProperty] private string _phantomContractTier = "Strict";
+    [ObservableProperty] private string _pulseModeText = "Auto (Waiting for reads)";
+    [ObservableProperty] private string _pulseReason = "Heuristic engine ready";
+    [ObservableProperty] private string _bottleneckDiagnosis = "Healthy SSD Performance";
+    [ObservableProperty] private string _selfTestSummary = "Run Cloud SSD Self-Test below to benchmark latency, throughput, and IOPS.";
+    [ObservableProperty] private bool _isSelfTestRunning;
+    [ObservableProperty] private bool _memoryHotCacheEnabled;
+    [ObservableProperty] private string _memoryCacheUsageText = "Disabled (0 B / 64 MiB)";
     [ObservableProperty] private bool _purgeCacheOnExit;
     [ObservableProperty] private bool _lowSpaceAdaptiveMode = true;
     [ObservableProperty] private bool _autoReclaimOnGameExit = true;
@@ -61,6 +69,9 @@ public sealed partial class SmartCacheViewModel : PageViewModel
         LowSpaceAdaptiveMode = c.LowSpaceAdaptiveMode;
         AutoReclaimOnGameExit = c.AutoReclaimOnGameExit;
         Pinned.ReplaceWith(c.PinnedPaths);
+        PhantomContractTier = Host.Settings.Phantom.ContractTier.ToString();
+        MemoryHotCacheEnabled = Host.Settings.Phantom.MemoryHotCacheEnabled;
+        Host.CacheManager.HotMemoryCache.Enabled = MemoryHotCacheEnabled;
         _ = RefreshAsync();
     }
 
@@ -115,8 +126,24 @@ public sealed partial class SmartCacheViewModel : PageViewModel
             }
             SafetyAlert = Host.CacheManager.IsCapacityExhausted ? (Host.CacheManager.CapacityExhaustionMessage ?? "Capacity exhausted") : "";
 
+            var pulse = Host.PulseEngine.CurrentClassification;
+            PulseModeText = $"{pulse.DetectedMode} ({pulse.Confidence:P0})";
+            PulseReason = pulse.Reason;
+
+            var diag = Host.LatencyShield.DiagnoseBottleneck(stats.CacheHitRatio, 1.2, 0.15);
+            BottleneckDiagnosis = $"{diag.Headline}: {diag.Description}";
+
+            MemoryCacheUsageText = Host.CacheManager.HotMemoryCache.Enabled
+                ? $"{ByteSize.Format(Host.CacheManager.HotMemoryCache.CurrentBytes)} / {ByteSize.Format(Host.CacheManager.HotMemoryCache.MaxBytes)} ({Host.CacheManager.HotMemoryCache.ItemCount} items, {Host.CacheManager.HotMemoryCache.HitRatio:P0} hit rate)"
+                : "Disabled (0 B / 64 MiB)";
+
             var isZf = Host.Settings.Cache.ZeroFootprintMode;
             Usage.ReplaceWith([
+                new("Phantom Pulse Mode", PulseModeText, "ok"),
+                new("Latency Shield Status", $"{Host.LatencyShield.CurrentAverageRttMs:F0}ms RTT · {Host.LatencyShield.Concurrency} streams", "accent"),
+                new("Tier A Hot Memory Cache", MemoryCacheUsageText, Host.CacheManager.HotMemoryCache.Enabled ? "ok" : "muted"),
+                new("Coalescing Read Pipeline", $"{Host.ReadPipeline.CoalescedRequests} coalesced · {Host.ReadPipeline.DeduplicatedRequests} deduplicated"),
+                new("Session Vault", $"{Host.SessionVault.ActiveSessions.Count} active / journalized"),
                 new("Zero Footprint Mode", isZf ? "ENABLED (512 MiB hard cap on C:)" : "Disabled", isZf ? "ok" : "muted"),
                 new("Prefetching Policy", isZf ? "OFF (Demand reads only)" : (Host.Settings.Streaming.PredictionEnabled ? "Active (Predictive)" : "Off"), isZf ? "ok" : "accent"),
                 new("Periodic Maintenance", "Every 2 hours"),
@@ -169,6 +196,41 @@ public sealed partial class SmartCacheViewModel : PageViewModel
             Say("Zero Footprint Mode disabled: returned to Balanced profile (5 GiB).", "ok");
         }
         Host.SaveSettings();
+        _ = RefreshAsync();
+    }
+
+    [RelayCommand]
+    private async Task RunSelfTestAsync()
+    {
+        if (IsSelfTestRunning) return;
+        IsSelfTestRunning = true;
+        SelfTestSummary = "Benchmarking Cloud SSD performance (metadata, IOPS, throughput, latency)...";
+        try
+        {
+            var progress = new Progress<string>(msg => SelfTestSummary = msg);
+            var report = await CloudSsdSelfTest.RunSyntheticSelfTestAsync(progress);
+            SelfTestSummary = $"{report.Summary} | Score: {report.OverallScore:F0}% ({report.Metrics.Count(m => m.Passed)}/{report.Metrics.Count} passed)";
+            Say($"Self-Test completed with {report.OverallScore:F0}% score.", report.OverallScore >= 80 ? "ok" : "warn");
+        }
+        catch (Exception ex)
+        {
+            SelfTestSummary = $"Self-Test error: {ex.Message}";
+            Say(ex.Message, "error");
+        }
+        finally
+        {
+            IsSelfTestRunning = false;
+        }
+    }
+
+    [RelayCommand]
+    private void ToggleMemoryHotCache()
+    {
+        MemoryHotCacheEnabled = !MemoryHotCacheEnabled;
+        Host.Settings.Phantom.MemoryHotCacheEnabled = MemoryHotCacheEnabled;
+        Host.CacheManager.HotMemoryCache.Enabled = MemoryHotCacheEnabled;
+        MemoryCacheUsageText = MemoryHotCacheEnabled ? $"{ByteSize.Format(Host.CacheManager.HotMemoryCache.CurrentBytes)} / {ByteSize.Format(Host.CacheManager.HotMemoryCache.MaxBytes)}" : "Disabled (0 B / 64 MiB)";
+        Say(MemoryHotCacheEnabled ? "Tier A Hot Memory Cache enabled (64 MiB RAM buffer with auto-trim)." : "Tier A Hot Memory Cache disabled.", "ok");
         _ = RefreshAsync();
     }
 

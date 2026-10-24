@@ -52,6 +52,24 @@ public sealed class AppSettings
     public bool StartOnSignIn { get; set; } = false;
     public bool AutoReconnectDrives { get; set; } = true;
     public bool LaunchMinimizedToTray { get; set; } = false;
+    public PhantomSettings Phantom { get; set; } = new();
+}
+
+public sealed class PhantomSettings
+{
+    public ZeroFootprintContractTier ContractTier { get; set; } = ZeroFootprintContractTier.Strict;
+    public PhantomPulseMode PulseMode { get; set; } = PhantomPulseMode.Auto;
+    public PhantomPulseMode? ManualPulseOverride { get; set; }
+    public bool GhostWarmUpEnabled { get; set; } = false;
+    public long GhostWarmUpMaxBytes { get; set; } = 64 * ByteSize.MiB;
+    public bool MemoryHotCacheEnabled { get; set; } = false;
+    public long MemoryHotCacheMaxBytes { get; set; } = 64 * ByteSize.MiB;
+    public bool LatencyShieldEnabled { get; set; } = true;
+    public bool ShadowIntegrityEnabled { get; set; } = true;
+    public int CoalescingWindowMs { get; set; } = 25;
+    public long CoalescingMaxSpanBytes { get; set; } = 2 * ByteSize.MiB;
+    public int MaxConcurrentRequests { get; set; } = 8;
+    public bool ReadDeduplicationEnabled { get; set; } = true;
 }
 
 public sealed class CacheSettings

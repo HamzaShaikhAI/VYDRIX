@@ -85,6 +85,35 @@ public sealed class AppHost : IAsyncDisposable
             },
             LoggerFactory.CreateLogger<SmartCacheManager>());
 
+        SessionVault = new SessionVault(Path.Combine(paths.DataRoot, "vault_sessions.json"));
+        PulseEngine = new PhantomPulseEngine();
+        LatencyShield = new LatencyShield();
+        GhostWarmUp = new GhostWarmUpService(Profiles, () => CacheManager.GetStorageEfficiencyStats(0, 0, 0).AvoidedStorageBytes);
+        MetadataCache = new MetadataCache();
+        ReadPipeline = new CoalescingReadPipeline(async (mId, p, off, len, ct) =>
+        {
+            var mountRoot = Mounts.Get(mId) is { State: MountState.Mounted } s ? s.Root : null;
+            if (string.IsNullOrEmpty(mountRoot)) return Array.Empty<byte>();
+            var fullPath = Path.Combine(mountRoot, p.TrimStart('\\', '/'));
+            if (!File.Exists(fullPath)) return Array.Empty<byte>();
+            var buf = new byte[len];
+            using var fs = new FileStream(fullPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+            fs.Seek(off, SeekOrigin.Begin);
+            int read = await fs.ReadAsync(buf.AsMemory(0, len), ct);
+            if (read < len) Array.Resize(ref buf, read);
+            return buf;
+        }, Settings.Phantom.MaxConcurrentRequests);
+
+        Mounts.ReadObserved += PulseEngine.ObserveAccess;
+        Mounts.ReadObserved += e =>
+        {
+            if (e.WaitMs.HasValue)
+            {
+                double throughputMBps = e.WaitMs.Value > 0 ? (e.Length / (1024.0 * 1024.0)) / (e.WaitMs.Value / 1000.0) : 0;
+                LatencyShield.RecordMeasurement(e.WaitMs.Value, throughputMBps, e.Error == null);
+            }
+        };
+
         Mounts.ReadObserved += Engine.OnAccess;
         Mounts.LookupObserved += (mount, path, off, present, pre) => Engine.OnLookup(mount, path, off, present, pre);
         Mounts.StatusChanged += s =>
@@ -126,6 +155,12 @@ public sealed class AppHost : IAsyncDisposable
     public SmartCacheManager CacheManager { get; }
     public CacheMigrationService MigrationService { get; }
     public StorageReclamationAdvisor StorageAdvisor { get; }
+    public SessionVault SessionVault { get; }
+    public PhantomPulseEngine PulseEngine { get; }
+    public LatencyShield LatencyShield { get; }
+    public GhostWarmUpService GhostWarmUp { get; }
+    public MetadataCache MetadataCache { get; }
+    public CoalescingReadPipeline ReadPipeline { get; }
     public IReadOnlyList<DependencyStatus> Dependencies { get; private set; } = [];
     public IReadOnlyList<RemoteEntry> Remotes { get; private set; } = [];
     public LaunchSession? CurrentLaunch { get; private set; }
@@ -185,6 +220,22 @@ public sealed class AppHost : IAsyncDisposable
         else _log.LogError("rclone not found");
         RefreshDependencies();
         await RefreshRemotesAsync(ct);
+
+        // Startup session reconciliation via SessionVault
+        var recoveryReport = await SessionVault.ReconcileStartupAsync(async gameId =>
+        {
+            var game = Library.Get(gameId);
+            if (game != null && !string.IsNullOrEmpty(game.RootPath))
+            {
+                await CacheManager.ReclaimGameCacheAsync(game.RootPath);
+            }
+        });
+        if (recoveryReport.RecoveredSessionsCount > 0)
+        {
+            _log.LogInformation("SessionVault: Recovered {Count} crashed sessions; cleared {Deadlocks} deadlocks.",
+                recoveryReport.RecoveredSessionsCount, recoveryReport.DeadlocksCleared);
+        }
+
         _diskTimer = new Timer(_ => CheckDisk(), null, TimeSpan.Zero, TimeSpan.FromSeconds(10));
 
         if (Rclone != null)
@@ -376,6 +427,7 @@ public sealed class AppHost : IAsyncDisposable
         }
         CurrentLaunch = launch;
         _activeLaunches[g.Id] = launch;
+        SessionVault.RecordLaunch(g.Id, launch.Process, g.MountId);
         g.LastPlayed = DateTime.Now;
         Library.Save(g);
         _log.LogInformation("Launched {Game} in {Mode} mode: {Exe}", g.Name, g.Mode, launch.Executable);
@@ -438,6 +490,12 @@ public sealed class AppHost : IAsyncDisposable
         if (_activeLaunches.TryRemove(g.Id, out var activeLaunch))
         {
             activeLaunch.State = LaunchState.Exited;
+        }
+
+        var vaultMatches = SessionVault.ActiveSessions.Where(s => s.GameId == g.Id).ToList();
+        foreach (var vm in vaultMatches)
+        {
+            SessionVault.MarkExited(vm.SessionId, d.LikelyFailure ? "Failed" : "Exited");
         }
 
         if (CurrentLaunch?.Game.Id == g.Id)

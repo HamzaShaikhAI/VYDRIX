@@ -139,3 +139,101 @@ public enum CompatibilityLevel
     /// <summary>Known not to work through VYDRIX.</summary>
     Incompatible
 }
+
+// --- VYDRIX 3.0 PHANTOM SSD MODELS ---
+
+public enum ZeroFootprintContractTier { Strict, Balanced, Performance }
+
+public enum PhantomPulseMode
+{
+    Auto,
+    Sequential,
+    RandomRead,
+    SmallFile,
+    LowBandwidth,
+    LowLatency,
+    StrictCache
+}
+
+public enum BottleneckType
+{
+    None,
+    NetworkCloud,
+    ProviderRateLimit,
+    LocalStorageIo,
+    LocalCpuBuffer,
+    HealthySsd
+}
+
+public sealed record BottleneckDiagnosis(
+    BottleneckType Type,
+    string Headline,
+    string Description,
+    double RttMs,
+    double ThroughputMBps,
+    double ErrorRate,
+    string ActionableAdvice);
+
+public sealed record PulseClassification(
+    PhantomPulseMode DetectedMode,
+    double Confidence,
+    string Reason,
+    int SamplesAnalyzed);
+
+public sealed record GhostWarmUpPlan(
+    string GameId,
+    long PlannedBytes,
+    int BlockCount,
+    IReadOnlyList<string> HighValueFiles,
+    string Justification,
+    bool FeasibleUnderBudget);
+
+public sealed record GhostWarmUpResult(
+    bool Completed,
+    long BytesPrefetched,
+    int BlocksPrefetched,
+    TimeSpan Elapsed,
+    string? AbortReason);
+
+public sealed record SelfTestMetric(
+    string Category,
+    string Name,
+    double Value,
+    string Unit,
+    double P95,
+    bool Passed,
+    string Description);
+
+public sealed record SelfTestReport(
+    DateTime Timestamp,
+    string Target,
+    bool IsSimulated,
+    IReadOnlyList<SelfTestMetric> Metrics,
+    double OverallScore,
+    string Summary);
+
+public sealed record TimeMachineEvent(
+    DateTime Timestamp,
+    string Category,
+    string Summary,
+    string Details,
+    string? GameId = null,
+    long? ImpactBytes = null);
+
+public sealed record VaultSessionRecord(
+    string SessionId,
+    string GameId,
+    int ProcessId,
+    DateTime ProcessStartTime,
+    string MountId,
+    DateTime Started,
+    DateTime? Ended,
+    string State,
+    IReadOnlyList<string> PinnedFiles);
+
+public sealed record VaultRecoveryReport(
+    int RecoveredSessionsCount,
+    int DeadlocksCleared,
+    long OrphanedBytesReclaimed,
+    IReadOnlyList<string> Details);
+

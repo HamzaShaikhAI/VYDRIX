@@ -78,6 +78,8 @@ public sealed class SmartCacheManager : IDisposable
 
     public MaintenanceReport? LastReport { get; private set; }
     public event Action<MaintenanceReport>? MaintenanceCompleted;
+    public MemoryHotCache HotMemoryCache { get; } = new();
+    public StorageTimeMachine TimeMachine { get; } = new();
     public bool IsCapacityExhausted { get; private set; }
     public string? CapacityExhaustionMessage { get; private set; }
     public string? LastAllocationFailureReason { get; private set; }
@@ -203,7 +205,15 @@ public sealed class SmartCacheManager : IDisposable
             }
         }
 
-        candidateFiles.Sort((a, b) => a.LastAccess.CompareTo(b.LastAccess));
+        candidateFiles.Sort((a, b) =>
+        {
+            var scoreA = EvictionScorer.CalculateScore(
+                DateTime.Now, a.LastAccess, a.PhysicalBytes, 1, 50.0, false, false, false, false, out _, out _);
+            var scoreB = EvictionScorer.CalculateScore(
+                DateTime.Now, b.LastAccess, b.PhysicalBytes, 1, 50.0, false, false, false, false, out _, out _);
+            var cmp = scoreB.CompareTo(scoreA);
+            return cmp != 0 ? cmp : a.LastAccess.CompareTo(b.LastAccess);
+        });
 
         foreach (var candidate in candidateFiles)
         {
@@ -228,6 +238,11 @@ public sealed class SmartCacheManager : IDisposable
             {
                 _logger?.LogDebug(ex, "Could not synchronously evict {Path}", candidate.RemotePath);
             }
+        }
+
+        if (freed > 0)
+        {
+            TimeMachine.RecordEvent("Eviction", "Synchronous Eviction", $"Reclaimed {ByteSize.Format(freed)} under storage pressure.", impactBytes: freed);
         }
 
         return freed;
@@ -386,8 +401,16 @@ public sealed class SmartCacheManager : IDisposable
                 targetToReclaim = long.MaxValue;
             }
 
-            // 4. Sort eligible candidates by LRU (oldest access time first)
-            candidateFiles.Sort((a, b) => a.LastAccess.CompareTo(b.LastAccess));
+            // 4. Sort eligible candidates using multi-factor eviction scoring
+            candidateFiles.Sort((a, b) =>
+            {
+                var scoreA = EvictionScorer.CalculateScore(
+                    DateTime.Now, a.LastAccess, a.PhysicalBytes, 1, 50.0, false, false, false, false, out _, out _);
+                var scoreB = EvictionScorer.CalculateScore(
+                    DateTime.Now, b.LastAccess, b.PhysicalBytes, 1, 50.0, false, false, false, false, out _, out _);
+                var cmp = scoreB.CompareTo(scoreA);
+                return cmp != 0 ? cmp : a.LastAccess.CompareTo(b.LastAccess);
+            });
 
             // 5. If live mounts are present and we have an RC eviction handler, notify rclone first
             foreach (var mount in mounts)
