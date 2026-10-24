@@ -70,15 +70,24 @@ The final archived Windows x64 binary distribution package is available on GitHu
 | **Archive Version** | `0.003.1` |
 | **Release Tag** | [`v0.003.1`](https://github.com/HamzaShaikhAI/VYDRIX/releases/tag/v0.003.1) |
 | **Platform** | Windows 10 / Windows 11 (x64) |
-| **Package Size** | 34,701,809 bytes (33.09 MB) |
-| **SHA-256 Checksum** | `10770FB49C49BD24D11B183457500892CAB51FB47BD624AD09DF78FC833E3B47` |
+| **Package Size** | 34,701,846 bytes (33.09 MB) |
+| **SHA-256 Checksum** | `23BD7D2FB0F4BAC6E8208D25809B4E666576188EEECF6D13FAC5964B7E27A29B` |
 | **Prerequisites** | .NET 10.0 x64, WinFsp 2.1+ |
 
 To verify the integrity of the downloaded archive in PowerShell:
 ```powershell
-(Get-FileHash -Path .\VYDRIX-0.003.1-win-x64.zip -Algorithm SHA256).Hash -eq "10770FB49C49BD24D11B183457500892CAB51FB47BD624AD09DF78FC833E3B47"
+(Get-FileHash -Path .\VYDRIX-0.003.1-win-x64.zip -Algorithm SHA256).Hash -eq "23BD7D2FB0F4BAC6E8208D25809B4E666576188EEECF6D13FAC5964B7E27A29B"
 # Expected output: True
 ```
+
+---
+
+## Continuous Integration (CI) Findings & Status
+
+The GitHub Actions workflow runs on `windows-latest` under [.github/workflows/ci.yml](.github/workflows/ci.yml):
+- **Stale Solution Fix:** The previous build error (`MSBUILD : error MSB1009: Project file does not exist. Switch: CloudPlayX.slnx`) was resolved by pointing the workflow to `Vydrix.slnx`.
+- **Registry Test Finding:** An automated CI run revealed a runner-specific test failure in `StartupRegistrationService_registers_and_unregisters_cleanly` (140 passed, 1 failed). On freshly provisioned headless Windows runners, `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` does not exist prior to interactive user login, causing `OpenSubKey` to return null. The service was hardened to use `CreateSubKey` so it functions reliably on clean systems.
+- **Current Test Suite:** 141 automated unit tests.
 
 ---
 

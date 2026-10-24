@@ -35,7 +35,7 @@ public static class StartupRegistrationService
 
         try
         {
-            using var key = Registry.CurrentUser.OpenSubKey(RunKeyPath, true);
+            using var key = Registry.CurrentUser.CreateSubKey(RunKeyPath);
             if (key == null) return false;
 
             var fullPath = Path.GetFullPath(exePath);
@@ -55,7 +55,7 @@ public static class StartupRegistrationService
         try
         {
             using var key = Registry.CurrentUser.OpenSubKey(RunKeyPath, true);
-            if (key == null) return false;
+            if (key == null) return true;
 
             if (key.GetValue(ValueName) != null)
                 key.DeleteValue(ValueName, false);
