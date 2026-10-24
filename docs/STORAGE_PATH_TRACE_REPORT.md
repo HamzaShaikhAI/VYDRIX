@@ -1,6 +1,6 @@
-# VYDRIX 3.0 — Comprehensive Storage Paths Trace Report
+# VYDRIX 0.003.1 (Experimental) — Comprehensive Storage Paths Trace Report
 
-**Document Version:** 3.0.0  
+**Document Version:** 0.003.1 (Archived)  
 **Host Environment:** Windows 11 x64 (NTFS Volumes: C: 193.71 GiB, D: 228.36 GiB, Virtual Cloud: G: 1.0 PiB)  
 **Evaluation Date:** October 24, 2026  
 **Auditor:** VYDRIX Systems & Windows Filesystem Engineering  
@@ -24,9 +24,9 @@ Every path touched by VYDRIX and its supported workloads is classified into four
 
 ## 2. Comprehensive Storage Path Audit Matrix
 
-| Category | Component / Tool | Default Windows Path | VYDRIX 3.0 Managed Path | Classification | Verification Status | Notes |
+| Category | Component / Tool | Default Windows Path | VYDRIX 0.003.1 (Experimental) Managed Path | Classification | Verification Status | Notes |
 |:---|:---|:---|:---|:---:|:---:|:---|
-| **1. VYDRIX Core** | Desktop Application | `%LOCALAPPDATA%\Programs\Vydrix` | `artifacts/VYDRIX-3.0-staging` | **(3) Located on C:** | **VERIFIED** | 3.0 MiB managed binaries |
+| **1. VYDRIX Core** | Desktop Application | `%LOCALAPPDATA%\Programs\Vydrix` | `artifacts/VYDRIX-0.003.1-staging` | **(3) Located on C:** | **VERIFIED** | 3.0 MiB managed binaries |
 | | Diagnostics Logs | `%LOCALAPPDATA%\Vydrix\logs` | `%LOCALAPPDATA%\Vydrix\logs` | **(3) Located on C:** | **VERIFIED** | 85.0 MiB, auto-rotated & purgeable |
 | | Profiles & Metadata DB | `%LOCALAPPDATA%\Vydrix\vydrix.db` | `%LOCALAPPDATA%\Vydrix\vydrix.db` | **(3) Located on C:** | **VERIFIED** | 64 KiB SQLite profile database |
 | | Session Vault Journal | `%LOCALAPPDATA%\Vydrix\vault_sessions.json` | `%LOCALAPPDATA%\Vydrix\vault_sessions.json` | **(3) Located on C:** | **VERIFIED** | Crash recovery journal (< 10 KiB) |
@@ -62,7 +62,7 @@ Every path touched by VYDRIX and its supported workloads is classified into four
 
 ```json
 {
-  "schemaVersion": "3.0.0",
+  "schemaVersion": "0.003.1",
   "generatedDate": "2026-10-24T16:40:00Z",
   "host": {
     "systemDrive": "C:\\",
@@ -72,7 +72,7 @@ Every path touched by VYDRIX and its supported workloads is classified into four
   "storagePaths": [
     {
       "category": "VYDRIX_CORE_BINARIES",
-      "path": "%USERPROFILE%\\Documents\\VYDRIX\\artifacts\\VYDRIX-3.0-staging",
+      "path": "%USERPROFILE%\\Documents\\VYDRIX\\artifacts\\VYDRIX-0.003.1-staging",
       "classification": "LOCATED_ON_C",
       "sizeBytes": 208920904,
       "relocatable": false,

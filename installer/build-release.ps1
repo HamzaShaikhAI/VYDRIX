@@ -1,13 +1,13 @@
 <#
 .SYNOPSIS
-  Builds the official VYDRIX 1.1.0 release: self-contained win-x64 publish of the desktop app and the CLI,
+  Builds the official VYDRIX 0.003.1 release: self-contained win-x64 publish of the desktop app and the CLI,
   bundles the verified rclone binary, documentation, and install/uninstall scripts, and packages the result.
 .EXAMPLE
   powershell -ExecutionPolicy Bypass -File installer\build-release.ps1
 #>
 param(
     [string]$Configuration = "Release",
-    [string]$Version = "1.1.0",
+    [string]$Version = "0.003.1",
     [string]$WinFspVersion = "2.1.25156",
     [switch]$SkipTests
 )

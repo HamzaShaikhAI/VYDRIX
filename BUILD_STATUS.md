@@ -1,4 +1,4 @@
-# Build status — VYDRIX 3.0 (Archived)
+# Build status — VYDRIX 0.003.1 (Archived - Failed Experiment)
 
 Legend: ✅ implemented and tested on this machine · 🟡 implemented, partially tested / tested only in simulation ·
 ⚪ implemented, not exercised by automated tests · ⛔ blocked (external dependency) · ❌ not implemented

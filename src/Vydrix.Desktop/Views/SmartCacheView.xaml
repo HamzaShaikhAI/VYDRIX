@@ -108,7 +108,7 @@
                     <StackPanel>
                         <TextBlock Text="Storage Policy &amp; Budget" Style="{StaticResource H2}" />
 
-                        <!-- VYDRIX 3.0 PHANTOM SSD: Phantom Pulse & Latency Shield Card -->
+                        <!-- VYDRIX 0.003.1 PHANTOM SSD: Phantom Pulse & Latency Shield Card -->
                         <Border Background="#141E38" BorderBrush="#2D3B60" BorderThickness="1" CornerRadius="6" Padding="12" Margin="0,4,0,10">
                             <StackPanel>
                                 <DockPanel LastChildFill="False">

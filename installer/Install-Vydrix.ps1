@@ -65,7 +65,7 @@ if ($DesktopShortcut) {
 $key = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\VYDRIX"
 New-Item -Path $key -Force | Out-Null
 $version = (Get-Item $exe).VersionInfo.ProductVersion
-if (-not $version) { $version = "1.1.0" }
+if (-not $version) { $version = "0.003.1" }
 
 Set-ItemProperty $key DisplayName "VYDRIX - Cloud-to-SSD Engine"
 Set-ItemProperty $key DisplayVersion $version

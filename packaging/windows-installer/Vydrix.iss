@@ -1,8 +1,8 @@
 ; Inno Setup script for the single-file VYDRIX installer (per-user; requests elevation only if installing WinFsp).
 ; Built by build-release.ps1:
-;   ISCC.exe /DAppVersion=1.1.0 /DSourceDir=..\dist\VYDRIX-1.1.0-win-x64 /DWinFspMsi=..\tools\winfsp\winfsp-2.1.25156.msi /O..\dist Vydrix.iss
+;   ISCC.exe /DAppVersion=0.003.1 /DSourceDir=..\dist\VYDRIX-0.003.1-win-x64 /DWinFspMsi=..\tools\winfsp\winfsp-2.1.25156.msi /O..\dist Vydrix.iss
 #ifndef AppVersion
-  #define AppVersion "1.1.0"
+  #define AppVersion "0.003.1"
 #endif
 #ifndef SourceDir
   #define SourceDir "..\dist\VYDRIX-" + AppVersion + "-win-x64"

@@ -1,4 +1,4 @@
-# VYDRIX 3.0 — PHANTOM SSD User & Operator Guide
+# VYDRIX 0.003.1 (Experimental) — PHANTOM SSD User & Operator Guide
 
 **Near-Physical-SSD Experience + Next-Generation Cloud Storage Intelligence**
 
@@ -6,7 +6,7 @@
 
 ## 1. Introduction
 
-VYDRIX 3.0 (codenamed **PHANTOM SSD**) bridges the gap between cloud storage economics and local solid-state drive responsiveness. By coupling an intelligent three-tier caching hierarchy with real-time workload classification and physical-SSD-inspired request pipelines, VYDRIX delivers an ultra-responsive virtual drive while keeping local disk consumption strictly within your chosen budget (512 MiB by default).
+VYDRIX 0.003.1 (Experimental) (codenamed **PHANTOM SSD**) bridges the gap between cloud storage economics and local solid-state drive responsiveness. By coupling an intelligent three-tier caching hierarchy with real-time workload classification and physical-SSD-inspired request pipelines, VYDRIX delivers an ultra-responsive virtual drive while keeping local disk consumption strictly within your chosen budget (512 MiB by default).
 
 ---
 

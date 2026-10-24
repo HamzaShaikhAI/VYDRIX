@@ -403,7 +403,8 @@ public sealed class CGuardianService : IDisposable
         long stagingBytes = 0;
         try
         {
-            var staging = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Documents", "VYDRIX", "artifacts", "VYDRIX-3.0-staging");
+            var staging = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Documents", "VYDRIX", "artifacts", "VYDRIX-0.003.1-staging");
+            if (!Directory.Exists(staging)) staging = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Documents", "VYDRIX", "artifacts", "VYDRIX-3.0-staging");
             if (Directory.Exists(staging)) stagingBytes = MeasureDirectoryBytes(staging);
         }
         catch { }

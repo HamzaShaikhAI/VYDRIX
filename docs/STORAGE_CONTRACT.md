@@ -1,7 +1,7 @@
-# VYDRIX 3.0 — Storage Contract Specification
+# VYDRIX 0.003.1 (Experimental) — Storage Contract Specification
 ## Cloud-First Computing: Workload Isolation, Cache Boundaries & System Drive Protection
 
-**Document Version:** 3.0.0  
+**Document Version:** 0.003.1 (Archived)  
 **Effective Date:** October 24, 2026  
 **Target Platform:** Windows 11 / Windows 10 x64 (.NET 10, WinFsp, rclone)  
 

@@ -2,9 +2,11 @@
 
 All notable changes to the VYDRIX virtual storage and game streaming engine are documented in this file.
 
-## [3.0.0] - 2026-10-24
+## [0.003.1] - 2026-10-24 (Final Archive — Failed Experiment)
 
-### Master Engineering Upgrade: PHANTOM SSD (Near-Physical-SSD Experience)
+> **Notice:** Final project version corrected to 0.003.1. Previous developmental labels (1.2, 2.0, 3.0) represented experimental milestones that failed to achieve reliable near-zero local storage under real-world cloud API and latency constraints. The project is officially discontinued.
+
+### Experimental Architecture & Findings: PHANTOM SSD & Cloud-First Attempt
 - **Multi-Tier Adaptive Caching Architecture:**
   - **Tier A (Hot Cache):** High-speed in-memory RAM cache (`MemoryHotCache.cs`) for small blocks (< 512 KiB) with microsecond latency (< 0.01 ms).
   - Built-in dynamic memory pressure detection via `GC.GetGCMemoryInfo()` with automatic proactive trimming before GC starvation.

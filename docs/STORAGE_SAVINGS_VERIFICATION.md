@@ -1,6 +1,6 @@
-# VYDRIX 3.0 — Storage-Savings Claim Verification Report
+# VYDRIX 0.003.1 (Experimental) — Storage-Savings Claim Verification Report
 
-**Document Version:** 3.0.0  
+**Document Version:** 0.003.1 (Archived)  
 **Host Environment:** Windows 11 x64, .NET 10.0.13  
 **Evaluation Date:** October 24, 2026  
 **Auditor:** VYDRIX Systems & Performance Engineering  
@@ -9,7 +9,7 @@
 
 ## 1. Executive Summary: The 109 GiB vs 512 MiB Claim
 
-A cornerstone promise of VYDRIX 3.0 Cloud-First Computing is:
+A cornerstone promise of VYDRIX 0.003.1 (Experimental) Cloud-First Computing is:
 > **"Run local workloads, store their data in the cloud, protect the system drive. Enable AAA games, Ollama models, and developer workspaces without consuming 100+ GiB on C:."**
 
 Specifically, the claim compares:
@@ -45,11 +45,11 @@ The 109 GiB unmanaged baseline represents a typical power-user workload running 
 
 ## 3. Storage Allocation Under VYDRIX Cloud-First Computing
 
-Under VYDRIX 3.0, the same workload is partitioned across four strictly isolated storage tiers:
+Under VYDRIX 0.003.1 (Experimental), the same workload is partitioned across four strictly isolated storage tiers:
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────────────────────┐
-│ VYDRIX 3.0 MANAGED ALLOCATION ACROSS STORAGE TIERS                                       │
+│ VYDRIX 0.003.1 (Experimental) MANAGED ALLOCATION ACROSS STORAGE TIERS                                       │
 ├───────────────────────────────┬──────────────┬────────────────┬──────────────────────────┤
 │ Workload Item                 │ Volume       │ Physical Media │ C: Drive Impact          │
 ├───────────────────────────────┼──────────────┼────────────────┼──────────────────────────┤

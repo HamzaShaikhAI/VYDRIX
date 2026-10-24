@@ -1,16 +1,16 @@
-# VYDRIX 3.0 — Release Integrity Verification Report
+# VYDRIX 0.003.1 (Experimental) — Release Integrity Verification Report
 
-**Document Version:** 3.0.0  
+**Document Version:** 0.003.1 (Archived)  
 **Target Environment:** Windows 11 x64, .NET 10.0.13, WinFsp 2.1.25156, rclone v1.75.2  
 **Evaluation Date:** October 24, 2026  
-**Candidate Release Directory:** `%USERPROFILE%\Documents\VYDRIX\artifacts\VYDRIX-3.0-staging`  
+**Candidate Release Directory:** `%USERPROFILE%\Documents\VYDRIX\artifacts\VYDRIX-0.003.1-staging`  
 **Active Production Directory (Untouched):** `%USERPROFILE%\Documents\VYDRIX\artifacts\VYDRIX`  
 
 ---
 
 ## 1. Executive Summary & Release Verdict
 
-This release integrity audit verifies the candidate build of **VYDRIX 3.0 (Phantom SSD & Cloud-First Computing)**.
+This release integrity audit verifies the candidate build of **VYDRIX 0.003.1 (Experimental) (Phantom SSD & Cloud-First Computing)**.
 
 ### Verdict: **PASS (Release Integrity & Build Verification Gate)**
 - **Git Lineage:** The candidate branch `feature/cloud-first-computing` contains **both** the PHANTOM SSD engine commit (`147e070`) and the Cloud-First Computing commit (`7bbb585`), along with system volume protection refinements (`6b29058`, `cecdcaa`).
@@ -29,8 +29,8 @@ The candidate release combines two major engineering milestones into a single, c
 ```
 * cecdcaa (HEAD -> feature/cloud-first-computing) feat(cli): support --cloud-root and --scratch-root in workspace create
 * 6b29058 fix(guardian): exclude virtual and FUSE drives from physical relocation targets
-* 7bbb585 feat(cloud-first): VYDRIX 3.0 Cloud-First Computing - C: Guardian, Storage Broker, Workspaces, Ollama Vault, and Game Vault
-* 147e070 feat(phantom-ssd): VYDRIX 3.0 Phantom SSD Engine - multi-tier caching, read coalescing, workload intelligence, session vault, and benchmark suite
+* 7bbb585 feat(cloud-first): VYDRIX 0.003.1 (Experimental) Cloud-First Computing - C: Guardian, Storage Broker, Workspaces, Ollama Vault, and Game Vault
+* 147e070 feat(phantom-ssd): VYDRIX 0.003.1 (Experimental) Phantom SSD Engine - multi-tier caching, read coalescing, workload intelligence, session vault, and benchmark suite
 * 67b5e84 (vydrix-main) feat: implement VYDRIX 1.2.0 Zero Footprint Mode (512 MiB hard cap, demand reads only, safe post-game cleanup)
 ```
 
@@ -38,8 +38,8 @@ The candidate release combines two major engineering milestones into a single, c
 |:---|:---|:---|:---|
 | `cecdcaa` | VYDRIX Core Team | `feat(cli): support --cloud-root and --scratch-root in workspace create` | CLI arguments for custom cloud/scratch directories |
 | `6b29058` | VYDRIX Core Team | `fix(guardian): exclude virtual and FUSE drives from physical relocation targets` | C: Guardian physical drive filtering |
-| `7bbb585` | VYDRIX Core Team | `feat(cloud-first): VYDRIX 3.0 Cloud-First Computing...` | C: Guardian, Cloud Storage Broker, Workspaces, Ollama Vault, Game Vault |
-| `147e070` | VYDRIX Core Team | `feat(phantom-ssd): VYDRIX 3.0 Phantom SSD Engine...` | Multi-tier cache, read coalescing, session vault, benchmarks |
+| `7bbb585` | VYDRIX Core Team | `feat(cloud-first): VYDRIX 0.003.1 (Experimental) Cloud-First Computing...` | C: Guardian, Cloud Storage Broker, Workspaces, Ollama Vault, Game Vault |
+| `147e070` | VYDRIX Core Team | `feat(phantom-ssd): VYDRIX 0.003.1 (Experimental) Phantom SSD Engine...` | Multi-tier cache, read coalescing, session vault, benchmarks |
 | `67b5e84` | VYDRIX Core Team | `feat: implement VYDRIX 1.2.0 Zero Footprint Mode...` | 512 MiB hard budget, zero prefetching baseline |
 
 ---
@@ -48,9 +48,9 @@ The candidate release combines two major engineering milestones into a single, c
 
 Per user instructions, the working production installation (`%USERPROFILE%\Documents\VYDRIX\artifacts\VYDRIX`) was **never overwritten or modified**.
 
-| Metric | Active Production (`artifacts\VYDRIX`) | Staging Candidate (`artifacts\VYDRIX-3.0-staging`) |
+| Metric | Active Production (`artifacts\VYDRIX`) | Staging Candidate (`artifacts\VYDRIX-0.003.1-staging`) |
 |:---|:---|:---|
-| **Version** | VYDRIX 1.2.0 (Zero Footprint Baseline) | VYDRIX 3.0.0 (Phantom SSD & Cloud-First) |
+| **Version** | VYDRIX 1.2.0 (Zero Footprint Baseline) | VYDRIX 0.003.1 (Experimental).0 (Phantom SSD & Cloud-First) |
 | **Last Write Time** | October 24, 2026 8:29:57 AM | October 24, 2026 4:32:38 PM |
 | **`Vydrix.exe` Size** | 171,520 bytes | 186,880 bytes |
 | **`Vydrix.exe` SHA256** | `01938D6C8BD5DBAAB26049E17D13C9F9DDA27D631D36DEFDAC0F0BDC8DFCF2F1` | `7FBF859C29D7BE61B0BFB6ACB6AB0B63A956C7C8AD36B4B27E6DD34FEAB428FA` |
@@ -61,7 +61,7 @@ Per user instructions, the working production installation (`%USERPROFILE%\Docum
 
 ## 4. Staging Cryptographic Manifest (SHA-256)
 
-All candidate release files located in `%USERPROFILE%\Documents\VYDRIX\artifacts\VYDRIX-3.0-staging`:
+All candidate release files located in `%USERPROFILE%\Documents\VYDRIX\artifacts\VYDRIX-0.003.1-staging`:
 
 | File Name | Size (Bytes) | SHA-256 Hash |
 |:---|---:|:---|

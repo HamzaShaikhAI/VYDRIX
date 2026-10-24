@@ -1,7 +1,7 @@
-# VYDRIX 3.0 — PHANTOM SSD Technical Gap Report & Baseline Audit
+# VYDRIX 0.003.1 (Experimental) — PHANTOM SSD Technical Gap Report & Baseline Audit
 
 **Date:** 2026-10-24  
-**Target:** VYDRIX 3.0.0 "Phantom SSD"  
+**Target:** VYDRIX 0.003.1 (Experimental).0 "Phantom SSD"  
 **Branch:** `feature/phantom-ssd` (branched from `vydrix-main` commit `67b5e84`)  
 **Host Environment:** Windows 11 x64, .NET 10.0.13, WinFsp 2.1.25156, rclone v1.75.2  
 **Baseline Verification:** 115 / 115 tests passing cleanly across all projects  
@@ -20,7 +20,7 @@ The current VYDRIX 1.2.0 release implements:
 
 ## 2. Technical Gaps & Limitations Identified
 
-| Architecture Area | Current Baseline (1.2.0) | Identified Gap / Limitation | VYDRIX 3.0 Target Solution |
+| Architecture Area | Current Baseline (1.2.0) | Identified Gap / Limitation | VYDRIX 0.003.1 (Experimental) Target Solution |
 |---|---|---|---|
 | **Cache Tiers** | Single disk cache tier (`vfs/` on disk). | No fast Tier A (Hot) memory tier for small files or metadata; repeated small reads hit disk I/O. | **Adaptive Tiered Cache:** Tier A (Hot memory cache with OS memory pressure awareness), Tier B (Warm disk cache), Tier C (Cold cloud). |
 | **Eviction Policy** | Basic LRU timestamp ordering. | Does not factor in access frequency, refetch cost, provider latency, or retention benefit. | **Intelligent Eviction Scoring:** Multi-factor composite score combining recency, frequency, refetch cost, and session status. |

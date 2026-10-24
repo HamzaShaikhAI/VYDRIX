@@ -1,11 +1,11 @@
-# VYDRIX 3.0 — Cloud-First Computing Operator Guide
+# VYDRIX 0.003.1 (Experimental) — Cloud-First Computing Operator Guide
 ## Running Local Workloads from Cloud Storage While Shielding the System Drive
 
 ---
 
 ## 1. Overview
 
-VYDRIX 3.0 introduces **Cloud-First Computing**: a unified architecture that enables you to run demanding applications directly against your cloud-backed virtual drive (`G:`), utilizing your local PC's CPU, GPU, and RAM, while keeping your physical `C:` drive completely shielded from massive asset downloads and compiler thrashing.
+VYDRIX 0.003.1 (Experimental) introduces **Cloud-First Computing**: a unified architecture that enables you to run demanding applications directly against your cloud-backed virtual drive (`G:`), utilizing your local PC's CPU, GPU, and RAM, while keeping your physical `C:` drive completely shielded from massive asset downloads and compiler thrashing.
 
 ---
 

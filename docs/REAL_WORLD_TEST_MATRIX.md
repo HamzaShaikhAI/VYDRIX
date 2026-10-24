@@ -1,4 +1,4 @@
-# VYDRIX 3.0 — Real-World Test Matrix & Verification Report
+# VYDRIX 0.003.1 (Experimental) — Real-World Test Matrix & Verification Report
 
 **Evaluation Date:** October 24, 2026  
 **Test Suite File:** [`tests/Vydrix.Tests/CloudFirstComputingTests.cs`](../tests/Vydrix.Tests/CloudFirstComputingTests.cs)  

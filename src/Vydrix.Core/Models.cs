@@ -140,7 +140,7 @@ public enum CompatibilityLevel
     Incompatible
 }
 
-// --- VYDRIX 3.0 PHANTOM SSD MODELS ---
+// --- VYDRIX 0.003.1 PHANTOM SSD MODELS ---
 
 public enum ZeroFootprintContractTier { Strict, Balanced, Performance }
 

@@ -1,6 +1,6 @@
-# VYDRIX 3.0 — C: Guardian & System Drive Protection Audit
+# VYDRIX 0.003.1 (Experimental) — C: Guardian & System Drive Protection Audit
 
-**Document Version:** 3.0.0  
+**Document Version:** 0.003.1 (Archived)  
 **Target Environment:** Windows 11 x64, .NET 10.0.13, WinFsp 2.1.25156  
 **Evaluation Date:** October 24, 2026  
 
@@ -8,7 +8,7 @@
 
 ## 1. Executive Summary
 
-A core mission of VYDRIX 3.0 is **system drive protection**: ensuring that large workloads (AAA games, multi-gigabyte Ollama LLMs, development compilers, and package caches) running from a cloud-backed virtual drive do not consume or exhaust the host PC's physical `C:` drive.
+A core mission of VYDRIX 0.003.1 (Experimental) is **system drive protection**: ensuring that large workloads (AAA games, multi-gigabyte Ollama LLMs, development compilers, and package caches) running from a cloud-backed virtual drive do not consume or exhaust the host PC's physical `C:` drive.
 
 The **C: Guardian Service** (`CGuardianService.cs`) runs continuously as a lightweight storage sentinel within VYDRIX, tracking real-time capacity and consumption rate, isolating VYDRIX-owned storage, identifying secondary storage relocation opportunities, and enforcing strict protective throttling.
 

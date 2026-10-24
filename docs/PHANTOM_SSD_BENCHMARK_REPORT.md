@@ -1,6 +1,6 @@
-# VYDRIX 3.0 — PHANTOM SSD Benchmark & Verification Report
+# VYDRIX 0.003.1 (Experimental) — PHANTOM SSD Benchmark & Verification Report
 
-**Document Version:** 3.0.0  
+**Document Version:** 0.003.1 (Archived)  
 **Target Environment:** Windows 11 x64, .NET 10.0.13, WinFsp 2.1.25156, rclone v1.75.2  
 **Baseline Release:** VYDRIX 1.2.0 Zero Footprint Mode  
 **Branch:** `feature/phantom-ssd`  
@@ -10,7 +10,7 @@
 
 ## 1. Executive Summary
 
-VYDRIX 3.0 introduces the **Phantom SSD Engine**, transforming the cloud-to-SSD virtual drive into a near-physical-SSD experience with intelligent caching, multi-factor eviction, proactive read coalescing, and real-time workload classification.
+VYDRIX 0.003.1 (Experimental) introduces the **Phantom SSD Engine**, transforming the cloud-to-SSD virtual drive into a near-physical-SSD experience with intelligent caching, multi-factor eviction, proactive read coalescing, and real-time workload classification.
 
 All **127 automated unit and integration tests** in the VYDRIX test suite pass with a 100% pass rate (`0 Failed, 0 Skipped, 127 Passed`, duration: 4s).
 
@@ -40,7 +40,7 @@ The benchmark was executed using `CloudSsdSelfTest.RunSyntheticSelfTestAsync()` 
 
 ## 3. Storage Footprint & Cache Tier Accounting
 
-VYDRIX 3.0 enforces a strict three-tier storage model while honoring the 512 MiB Zero Footprint default:
+VYDRIX 0.003.1 (Experimental) enforces a strict three-tier storage model while honoring the 512 MiB Zero Footprint default:
 
 ```
 [ Application Process (Game / System) ]
@@ -157,4 +157,4 @@ To uphold engineering integrity, all benchmark metrics in this report and in the
 - **Synthetic Benchmarks:** Marked `IsSimulated = true`. Measure the local pipeline overhead, WinFsp user-mode driver path, MemoryHotCache, and CoalescingReadPipeline efficiency.
 - **Live Cloud Benchmarks:** Marked `IsSimulated = false`. Measure end-to-end Google Drive API latency, Internet transit RTT, and remote provider throttling.
 
-The VYDRIX 3.0 Phantom SSD Engine satisfies all engineering objectives for production deployment.
+The VYDRIX 0.003.1 (Experimental) Phantom SSD Engine satisfies all engineering objectives for production deployment.
