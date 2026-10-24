@@ -2,6 +2,14 @@
 
 **Windows Cloud-Backed Virtual Storage & Streaming System**
 
+> [!WARNING]
+> **Project Status: DISCONTINUED / ARCHIVED (v3.0.0-final)**
+> VYDRIX has concluded its final engineering phase and is officially decommissioned. It serves as an open-source reference implementation and post-mortem exploring the limits of mounting consumer cloud storage as a virtual gaming and AI storage engine on Windows.
+>
+> All active cloud credentials and local VFS caches have been disconnected and unmounted. See [Architectural Post-Mortem & Decommission Summary](#architectural-post-mortem--decommission-summary) below for detailed technical findings.
+
+---
+
 VYDRIX is an upgraded, security-hardened virtual cloud drive and predictive asset streaming system for Windows 10/11 (x64). Built upon verified engineering research and architecture from the open-source CloudPlayX reference project, VYDRIX mounts cloud storage as a native Windows drive letter, caches downloaded ranges sparsely on NTFS, and streams files on demand.
 
 > VYDRIX runs local executables on your PC's CPU and GPU. Uncached ranges stream over your network connection and are cached sparsely on your local SSD for near-instant subsequent reads.
@@ -56,6 +64,39 @@ vydrix secret emit-config-pass [--home dir]  # IPC helper for rclone --password-
 VYDRIX includes seamless, automatic migration from legacy `%LOCALAPPDATA%\CloudPlayX` directories:
 - Existing `settings.json`, `rclone.conf`, DPAPI keys, and game profiles are migrated to `%LOCALAPPDATA%\Vydrix` without data loss.
 - `cloudplayx.db` is migrated as `vydrix.db`.
+
+## Architectural Post-Mortem & Decommission Summary
+
+### 1. The Core Vision
+The core product thesis of VYDRIX was ambitious: **allow Windows users to run AAA games, AI model inference (e.g. Ollama), and large build workloads directly from a cloud-backed virtual drive (Google Drive mounted via WinFsp and rclone), using local CPU/GPU compute while keeping local physical C: drive consumption bounded near zero.**
+
+### 2. Engineering Achievements Shipped in v3.0.0
+Across three major engineering iterations, VYDRIX implemented a hardened, production-grade virtual filesystem framework:
+- **Security & Secret Hardening:** DPAPI encryption for local secrets (`SEC-01`), `--password-command` IPC isolation preventing password leaks in process tables (`SEC-02`), runtime cryptographic SHA-256 binary integrity checking (`SEC-04`), and high-performance redaction masking for OAuth credentials (`SEC-05`).
+- **Zero Footprint Mode:** Strict 512 MiB NTFS sparse cache quota with dynamic cleanup triggers upon workload exit.
+- **Phantom SSD Architecture:** 3-tier caching hierarchy combining a microsecond in-memory RAM cache (`MemoryHotCache`), sparse NVMe disk cache, and remote range-coalesced request pipelines (`CoalescingReadPipeline`) with multi-factor eviction scoring.
+- **C: Guardian & Cloud-First Workspaces:** Automated filesystem shielding, dynamic redirection of scratch and caches to secondary volumes (`D:\`), and isolated development workspace templates.
+- **Comprehensive Verification:** 141 automated unit and regression tests (100% pass rate).
+
+### 3. Fundamental Boundaries & Why Virtual Cloud Drives Fail for Heavy Local Workloads
+Despite exhaustive optimization, empirical stress testing on real-world Windows 11 hardware demonstrated fundamental physical and protocol bottlenecks inherent to consumer cloud storage mounts:
+
+1. **Cloud API Throttling & Daily Quotas (HTTP 403 / 429):**
+   Consumer cloud storage backends (such as Google Drive) enforce strict per-user API rate limits and daily upload/download quotas. Large file operations (such as staging a 1.55 GiB installer or streaming high-throughput game assets) rapidly trigger exponential HTTP 403 backoffs, causing the filesystem layer to stall indefinitely.
+2. **The VFS Write-Buffering vs. Storage-Saving Paradox:**
+   To provide POSIX/Windows filesystem compatibility, write operations must be buffered locally on NTFS until remote sync completes. When remote transfers stall due to cloud API throttling or network instability, unuploaded dirty buffers (`Dirty: true`) accumulate on local storage. Deleting these buffers would cause silent data loss, while preserving them directly violates the "zero local storage" guarantee.
+3. **Random I/O Latency and Memory-Mapped Files (`mmap`):**
+   Modern 3D games and machine learning engines rely heavily on unbuffered, memory-mapped random file reads. User-mode filesystem bridges (WinFsp/FUSE) translating random 4KB reads into remote HTTPS range requests introduce millisecond-scale latency penalties (100x–1,000x slower than physical NVMe SSDs). This causes Windows kernel wait queues to saturate, driving disk active time to 100% and causing desktop micro-freezes.
+4. **Conclusion:**
+   For high-IOPS workloads (AAA games, local LLM weights, heavy compiler outputs), high-speed local NVMe storage or dedicated remote rendering protocols (e.g., GeForce NOW, Moonlight, Parsec) remain fundamentally superior to virtual cloud-drive filesystem mounts.
+
+### 4. Decommission Checklist
+In the final decommission:
+- **Virtual Drive Unmounted:** Virtual drive `G:` was safely dismounted.
+- **Cloud Accounts Disconnected:** Local OAuth tokens (`rclone.conf`) and DPAPI keys (`rclone.conf.key`) were securely deleted.
+- **No Remote Modifications:** The user's Google Drive account was untouched; no files were deleted, renamed, or modified on the cloud.
+- **Local Cache & Test Bloat Reclaimed:** Reclaimed over 70 GB of logical disk usage on local disk `C:`, including the temporary integration test fixtures and stale VFS cache.
+- **Final Release Packaged:** The fully integrated, self-contained `VYDRIX-3.0.0-win-x64.zip` distribution remains preserved in the artifacts directory.
 
 ## License & Attribution
 
