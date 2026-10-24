@@ -3,8 +3,8 @@
 **Document Version:** 3.0.0  
 **Target Environment:** Windows 11 x64, .NET 10.0.13, WinFsp 2.1.25156, rclone v1.75.2  
 **Evaluation Date:** October 24, 2026  
-**Candidate Release Directory:** `C:\Users\win10\Documents\VYDRIX\artifacts\VYDRIX-3.0-staging`  
-**Active Production Directory (Untouched):** `C:\Users\win10\Documents\VYDRIX\artifacts\VYDRIX`  
+**Candidate Release Directory:** `%USERPROFILE%\Documents\VYDRIX\artifacts\VYDRIX-3.0-staging`  
+**Active Production Directory (Untouched):** `%USERPROFILE%\Documents\VYDRIX\artifacts\VYDRIX`  
 
 ---
 
@@ -46,7 +46,7 @@ The candidate release combines two major engineering milestones into a single, c
 
 ## 3. Active Production vs Staged Candidate Isolation
 
-Per user instructions, the working production installation (`C:\Users\win10\Documents\VYDRIX\artifacts\VYDRIX`) was **never overwritten or modified**.
+Per user instructions, the working production installation (`%USERPROFILE%\Documents\VYDRIX\artifacts\VYDRIX`) was **never overwritten or modified**.
 
 | Metric | Active Production (`artifacts\VYDRIX`) | Staging Candidate (`artifacts\VYDRIX-3.0-staging`) |
 |:---|:---|:---|
@@ -61,7 +61,7 @@ Per user instructions, the working production installation (`C:\Users\win10\Docu
 
 ## 4. Staging Cryptographic Manifest (SHA-256)
 
-All candidate release files located in `C:\Users\win10\Documents\VYDRIX\artifacts\VYDRIX-3.0-staging`:
+All candidate release files located in `%USERPROFILE%\Documents\VYDRIX\artifacts\VYDRIX-3.0-staging`:
 
 | File Name | Size (Bytes) | SHA-256 Hash |
 |:---|---:|:---|

@@ -54,7 +54,7 @@ Every path touched by VYDRIX and its supported workloads is classified into four
 | | Save Games | `%USERPROFILE%\Saved Games` | `%USERPROFILE%\Saved Games` | **(3) Located on C:** | **VERIFIED** | Protected system data, never pruned |
 | | GPU Shader Cache | `%LOCALAPPDATA%\NVIDIA\DXCache` | `%LOCALAPPDATA%\NVIDIA\DXCache` | **(4) Unknown / Driver** | **VERIFIED** | Managed by NVIDIA driver kernel |
 | **11. Windows OS** | Virtual Memory Paging | `C:\pagefile.sys` | `C:\pagefile.sys` | **(3) Located on C:** | **VERIFIED** | Managed by Windows Memory Manager |
-| | Temp Directory | `%TEMP%` | `C:\Users\win10\AppData\Local\Temp` | **(3) Located on C:** | **VERIFIED** | Standard OS temporary file root |
+| | Temp Directory | `%TEMP%` | `%USERPROFILE%\AppData\Local\Temp` | **(3) Located on C:** | **VERIFIED** | Standard OS temporary file root |
 
 ---
 
@@ -72,7 +72,7 @@ Every path touched by VYDRIX and its supported workloads is classified into four
   "storagePaths": [
     {
       "category": "VYDRIX_CORE_BINARIES",
-      "path": "C:\\Users\\win10\\Documents\\VYDRIX\\artifacts\\VYDRIX-3.0-staging",
+      "path": "%USERPROFILE%\\Documents\\VYDRIX\\artifacts\\VYDRIX-3.0-staging",
       "classification": "LOCATED_ON_C",
       "sizeBytes": 208920904,
       "relocatable": false,
@@ -80,7 +80,7 @@ Every path touched by VYDRIX and its supported workloads is classified into four
     },
     {
       "category": "VYDRIX_LOGS",
-      "path": "C:\\Users\\win10\\AppData\\Local\\Vydrix\\logs",
+      "path": "%USERPROFILE%\\AppData\\Local\\Vydrix\\logs",
       "classification": "LOCATED_ON_C",
       "sizeBytes": 89128960,
       "relocatable": true,
@@ -89,7 +89,7 @@ Every path touched by VYDRIX and its supported workloads is classified into four
     },
     {
       "category": "VYDRIX_DATABASE",
-      "path": "C:\\Users\\win10\\AppData\\Local\\Vydrix\\vydrix.db",
+      "path": "%USERPROFILE%\\AppData\\Local\\Vydrix\\vydrix.db",
       "classification": "LOCATED_ON_C",
       "sizeBytes": 65536,
       "relocatable": false,
@@ -166,7 +166,7 @@ Every path touched by VYDRIX and its supported workloads is classified into four
     },
     {
       "category": "USER_SAVE_GAMES",
-      "path": "C:\\Users\\win10\\Saved Games",
+      "path": "%USERPROFILE%\\Saved Games",
       "classification": "LOCATED_ON_C",
       "protectedUserData": true,
       "neverDeleted": true,
@@ -174,7 +174,7 @@ Every path touched by VYDRIX and its supported workloads is classified into four
     },
     {
       "category": "NVIDIA_SHADER_CACHE",
-      "path": "C:\\Users\\win10\\AppData\\Local\\NVIDIA\\DXCache",
+      "path": "%USERPROFILE%\\AppData\\Local\\NVIDIA\\DXCache",
       "classification": "UNKNOWN_NOT_CONTROLLABLE",
       "managedBy": "NVIDIA_GRAPHICS_DRIVER",
       "verified": true

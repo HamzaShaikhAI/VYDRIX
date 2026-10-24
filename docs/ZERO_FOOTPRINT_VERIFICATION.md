@@ -6,8 +6,8 @@
 **Date:** 2026-10-24  
 **Git Branch:** `vydrix-main`  
 **Base Commit:** `2c17199`  
-**Repository:** `C:\Users\win10\Documents\VYDRIX\vydrix`  
-**Staged Release:** `C:\Users\win10\Documents\VYDRIX\artifacts\VYDRIX-1.2.0-staging`  
+**Repository:** `%USERPROFILE%\Documents\VYDRIX\vydrix`  
+**Staged Release:** `%USERPROFILE%\Documents\VYDRIX\artifacts\VYDRIX-1.2.0-staging`  
 
 ---
 
@@ -115,7 +115,7 @@ The VYDRIX Desktop UI (`SmartCacheView.xaml`) provides intuitive control over Ze
 
 The Release build in `artifacts\VYDRIX-1.2.0-staging` was verified using the staged CLI:
 ```powershell
-& "C:\Users\win10\Documents\VYDRIX\artifacts\VYDRIX-1.2.0-staging\vydrix-cli.exe" deps
+& "%USERPROFILE%\Documents\VYDRIX\artifacts\VYDRIX-1.2.0-staging\vydrix-cli.exe" deps
 ```
 **Output:**
 - `[Ok] WinFsp: Installed (v2.1.25156)`

@@ -2,7 +2,7 @@
 
 **Date:** 2026-10-24  
 **Target Version:** VYDRIX 1.2.0  
-**Repository:** `C:\Users\win10\Documents\VYDRIX\vydrix`  
+**Repository:** `%USERPROFILE%\Documents\VYDRIX\vydrix`  
 **Current Branch:** `vydrix-main`  
 **Commit:** `2c17199`  
 
@@ -53,7 +53,7 @@ Empirical measurements gathered from the live Windows 11 host:
 
 | Storage Domain | File System Path | File Count | Logical Size | Physical Disk Usage | Purpose / Contents |
 |---|---|---|---|---|---|
-| **Production Binaries** | `C:\Users\win10\Documents\VYDRIX\artifacts\VYDRIX` | 305 files | 262.16 MB | 262.20 MB | VYDRIX 1.0 release build, WPF GUI, CLI, .NET runtime |
+| **Production Binaries** | `%USERPROFILE%\Documents\VYDRIX\artifacts\VYDRIX` | 305 files | 262.16 MB | 262.20 MB | VYDRIX 1.0 release build, WPF GUI, CLI, .NET runtime |
 | **Bundled Tooling** | `artifacts\VYDRIX\tools\rclone\rclone.exe` | 1 file | 85.50 MB | 85.50 MB | Official rclone v1.75.2 win-x64 binary |
 | **Staged Binaries** | `artifacts\VYDRIX-2.0-staging` | 69 files | 123.28 MB | 123.30 MB | VYDRIX 2.0 release candidate |
 | **VFS Data Cache** | `%LOCALAPPDATA%\Vydrix\cache\m-03ed76a1\vfs` | 0 files | 0 Bytes | 0 Bytes | Sparse chunks for Google Drive (`G:`) |

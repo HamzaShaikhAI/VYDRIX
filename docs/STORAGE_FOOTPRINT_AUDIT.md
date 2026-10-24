@@ -2,7 +2,7 @@
 
 **Date:** 2026-10-24  
 **Audit Target:** VYDRIX 1.1 / Windows 11 Workspace  
-**Repository:** `C:\Users\win10\Documents\VYDRIX\vydrix`  
+**Repository:** `%USERPROFILE%\Documents\VYDRIX\vydrix`  
 **Git Branch / Commit:** `vydrix-main` (`4febc4c15bab345646df669af869bc75097ceb69`)  
 **Auditor:** VYDRIX Engineering
 
@@ -26,7 +26,7 @@ All measurements reflect the actual on-disk state on the host system as of 2026-
 
 | Category | Component / Path | File Count | Logical Size (Bytes) | Physical Size (MB) | Safely Recreatable? |
 | :--- | :--- | :---: | :---: | :---: | :---: |
-| **Published Application** | `C:\Users\win10\Documents\VYDRIX\artifacts\VYDRIX` | 305 | 262,158,809 | 250.01 MB | Yes (from source build) |
+| **Published Application** | `%USERPROFILE%\Documents\VYDRIX\artifacts\VYDRIX` | 305 | 262,158,809 | 250.01 MB | Yes (from source build) |
 | **Bundled Rclone Binary** | `...artifacts\VYDRIX\tools\rclone\rclone.exe` | 1 | 85,500,928 | 81.54 MB | Yes (pinned binary) |
 | **Application Cache (VFS)** | `%LOCALAPPDATA%\Vydrix\cache` | 1 | 89 | 0.00 MB | **Yes (100% cloud backed)** |
 | **Diagnostics & Logs** | `%LOCALAPPDATA%\Vydrix\logs` | 4 | 89,121,260 | 84.99 MB | Yes (transient) |
@@ -85,7 +85,7 @@ A comprehensive audit of path resolution in `AppPaths.cs`, `MountPlanning.cs`, a
 | **Log Directory** | `AppPaths.LogDirectory` | `DataRoot\logs` | Yes |
 | **SQLite Database** | `AppPaths.DatabaseFile` | `DataRoot\vydrix.db` | Yes |
 | **Rclone Configuration** | `AppPaths.RcloneConfigFile` | `DataRoot\rclone.conf` | Yes |
-| **Temporary Files** | .NET & Win32 defaults | `%TEMP%` (`C:\Users\win10\AppData\Local\Temp`) | Inherits OS temp |
+| **Temporary Files** | .NET & Win32 defaults | `%TEMP%` (`%USERPROFILE%\AppData\Local\Temp`) | Inherits OS temp |
 
 ### Available Drive Volumes on Host
 Inspection of available Windows volumes on the host system:
@@ -156,7 +156,7 @@ Extracted from `%LOCALAPPDATA%\Vydrix\settings.json`:
 {
   "SchemaVersion": 1,
   "Cache": {
-    "CacheRoot": "C:\\Users\\win10\\AppData\\Local\\Vydrix\\cache",
+    "CacheRoot": "%USERPROFILE%\\AppData\\Local\\Vydrix\\cache",
     "BudgetBytes": 5368709120,
     "MinFreeSpaceBytes": 8589934592,
     "MaxAge": "30.00:00:00",

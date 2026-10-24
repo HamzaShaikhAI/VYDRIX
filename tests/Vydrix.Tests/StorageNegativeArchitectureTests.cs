@@ -142,7 +142,7 @@ public sealed class StorageNegativeArchitectureTests : IDisposable
     [Fact]
     public void VolumeValidator_warns_on_system_drive_c()
     {
-        var targetDir = @"C:\Users\win10\AppData\Local\Vydrix\cache";
+        var targetDir = @"C:\Users\ExampleUser\AppData\Local\Vydrix\cache";
         var res = VolumeValidator.Validate(targetDir, 512 * ByteSize.MiB, 1 * ByteSize.GiB);
 
         Assert.Contains(res.Warnings, w => w.Contains("Windows system volume (C:)"));

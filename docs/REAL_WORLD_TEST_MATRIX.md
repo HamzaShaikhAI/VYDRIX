@@ -1,7 +1,7 @@
 # VYDRIX 3.0 — Real-World Test Matrix & Verification Report
 
 **Evaluation Date:** October 24, 2026  
-**Test Suite File:** [`tests/Vydrix.Tests/CloudFirstComputingTests.cs`](file:///c:/Users/win10/Documents/VYDRIX/vydrix/tests/Vydrix.Tests/CloudFirstComputingTests.cs)  
+**Test Suite File:** [`tests/Vydrix.Tests/CloudFirstComputingTests.cs`](../tests/Vydrix.Tests/CloudFirstComputingTests.cs)  
 **Total Tests in Solution:** 141  
 **Pass Rate:** 100% (141 Passed, 0 Failed, 0 Skipped, Duration: 9s)  
 
