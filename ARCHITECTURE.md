@@ -1,15 +1,15 @@
-# CLOUDPLAY X — Architecture
+# VYDRIX — Architecture
 
-CLOUDPLAY X runs games on the user's own PC from files stored in cloud storage. It is built on proven components —
+VYDRIX runs games and workloads on the user's own PC from files stored in cloud storage. It is built on proven components —
 **rclone** (cloud backends + VFS sparse cache) and **WinFsp** (Windows user-mode filesystem) — and adds orchestration,
 telemetry, prediction, game management and a desktop UI. No kernel driver and no second cache layer.
 
 ```
- ┌────────────────────────── CloudPlayX.Desktop (WPF, MVVM) ─────────────────────────┐   cpx.exe (CLI)
+ ┌────────────────────────── Vydrix.Desktop (WPF, MVVM) ─────────────────────────┐   vydrix.exe (CLI)
  │ Dashboard · Cloud Drives · Game Library · Accelerator · Smart Cache · Perf · ...   │   benchmarks
  └───────────────────────────────────────┬────────────────────────────────────────────┘        │
                                          ▼                                                     ▼
- ┌──────────────────────────────── CloudPlayX.App: AppHost ──────────────────────────────────────┐
+ ┌──────────────────────────────── Vydrix.App: AppHost ──────────────────────────────────────┐
  │ settings · rclone discovery · mounts ⇄ engine wiring · metrics (1 Hz) · disk guard · games     │
  └──────┬──────────────┬────────────────┬───────────────────┬──────────────────┬──────────────────┘
         ▼              ▼                ▼                   ▼                  ▼
@@ -32,17 +32,17 @@ telemetry, prediction, game management and a desktop UI. No kernel driver and no
 
 | Project | Responsibility |
 |---|---|
-| `CloudPlayX.Core` | Settings (atomic JSON), paths, units (Mbps vs MB/s), models, metric history, disk P/Invoke (sparse physical size, free space, filesystem), read-attribution registry |
-| `CloudPlayX.Diagnostics` | Logging (file + in-memory, redacted), `Redactor`, DPAPI `SecretStore`, WinFsp/dependency checks, sanitized diagnostic ZIP |
-| `CloudPlayX.Mount` | rclone discovery + capability detection (parses `mount --help`/`help flags`), argument-list runner, rc client, private config + encryption, Google Drive OAuth connector (rc `config/create` state machine), mount flag builder, drive letters, `RcloneMountService` (start/ready/health/crash-restart/graceful unmount/adoption), rotation-safe `LogTailer`, `RcloneLogParser` |
-| `CloudPlayX.Cache` | `CacheInspector` (reads rclone `vfsMeta` range lists + `GetCompressedFileSizeW`), `DiskSafetyGuard` (budget vs. reserve, overrun margin, pressure), `CacheMaintenance` (marker-guarded clearing), `CacheIndex` |
-| `CloudPlayX.Streaming` | Prediction engine: predictors, accounting, `PrefetchQueue`, `NetworkGovernor`, `SchedulingPolicy`, `PrefetchScheduler`, `MountReadExecutor`, `ProfileStore`, `StreamingEngine`, Game-Aware mode, deterministic simulator + synthetic traces |
-| `CloudPlayX.Games` | Library, scanner, PE inspector, dependency resolver, compatibility analyzer, Hybrid builder, Full Local installer, launcher (job objects, NTSTATUS decoding, event log), network probe, Optimize & Prepare, pin keeper |
-| `CloudPlayX.Providers` | Provider descriptors and support levels (Google Drive supported; others via rclone untested; TeraBox unsupported) |
-| `CloudPlayX.App` | `AppHost` application service and `MetricsCollector` |
-| `CloudPlayX.Desktop` | WPF UI (MVVM with CommunityToolkit), theme, `Sparkline` chart, dialogs |
-| `CloudPlayX.Cli` | `cpx` CLI; also rclone's `--password-command` helper for DPAPI-protected config encryption |
-| `CloudPlayX.SimCloud` | Throttled local HTTP file server for tests/benchmarks (bandwidth, latency, failures, drops, offline) |
+| `Vydrix.Core` | Settings (atomic JSON), paths, units (Mbps vs MB/s), models, metric history, disk P/Invoke (sparse physical size, free space, filesystem), read-attribution registry |
+| `Vydrix.Diagnostics` | Logging (file + in-memory, redacted), `Redactor`, DPAPI `SecretStore`, WinFsp/dependency checks, sanitized diagnostic ZIP |
+| `Vydrix.Mount` | rclone discovery + capability detection (parses `mount --help`/`help flags`), argument-list runner, rc client, private config + encryption, Google Drive OAuth connector (rc `config/create` state machine), mount flag builder, drive letters, `RcloneMountService` (start/ready/health/crash-restart/graceful unmount/adoption), rotation-safe `LogTailer`, `RcloneLogParser` |
+| `Vydrix.Cache` | `CacheInspector` (reads rclone `vfsMeta` range lists + `GetCompressedFileSizeW`), `DiskSafetyGuard` (budget vs. reserve, overrun margin, pressure), `CacheMaintenance` (marker-guarded clearing), `CacheIndex` |
+| `Vydrix.Streaming` | Prediction engine: predictors, accounting, `PrefetchQueue`, `NetworkGovernor`, `SchedulingPolicy`, `PrefetchScheduler`, `MountReadExecutor`, `ProfileStore`, `StreamingEngine`, Game-Aware mode, deterministic simulator + synthetic traces |
+| `Vydrix.Games` | Library, scanner, PE inspector, dependency resolver, compatibility analyzer, Hybrid builder, Full Local installer, launcher (job objects, NTSTATUS decoding, event log), network probe, Optimize & Prepare, pin keeper |
+| `Vydrix.Providers` | Provider descriptors and support levels (Google Drive supported; others via rclone untested; TeraBox unsupported) |
+| `Vydrix.App` | `AppHost` application service and `MetricsCollector` |
+| `Vydrix.Desktop` | WPF UI (MVVM with CommunityToolkit), theme, `Sparkline` chart, dialogs |
+| `Vydrix.Cli` | `cpx` CLI; also rclone's `--password-command` helper for DPAPI-protected config encryption |
+| `Vydrix.SimCloud` | Throttled local HTTP file server for tests/benchmarks (bandwidth, latency, failures, drops, offline) |
 
 ## Key data flows
 
@@ -104,11 +104,11 @@ P2 (likely next, heading-weighted) work, all cancellable by tag. See `docs/GAME_
 
 | Data | Location |
 |---|---|
-| Settings | `%LOCALAPPDATA%\CloudPlayX\settings.json` (atomic replace; corrupt files are kept aside) |
-| Library, profiles, sessions, transitions, predictor stats | `cloudplayx.db` (SQLite, WAL) |
+| Settings | `%LOCALAPPDATA%\Vydrix\settings.json` (atomic replace; corrupt files are kept aside) |
+| Library, profiles, sessions, transitions, predictor stats | `vydrix.db` (SQLite, WAL) |
 | Cloud logins | `rclone.conf` (rclone-encrypted) + `rclone.conf.key` (DPAPI) |
 | Running mounts | `mounts.state.json` (rc password DPAPI-protected) |
-| Cache | `<cache root>\m-<drive id>\{vfs,vfsMeta}` + `.cloudplayx-cache` marker |
+| Cache | `<cache root>\m-<drive id>\{vfs,vfsMeta}` + `.vydrix-cache` marker |
 | Logs / launch diagnostics | `logs\`, `diagnostics\` |
 
 ## Security model

@@ -1,6 +1,6 @@
 # Contributing
 
-Thanks for helping. A few ground rules keep CLOUDPLAY X honest and safe:
+Thanks for helping. A few ground rules keep VYDRIX honest and safe:
 
 - **No DRM, anti-cheat, launcher or ownership bypasses.** Pull requests that add them are closed.
 - **No fabricated numbers.** Metrics, benchmarks and "game works" claims must come from a real, reproducible run.
@@ -17,15 +17,15 @@ powershell -ExecutionPolicy Bypass -File installer/fetch-rclone.ps1
 ```
 
 ```bash
-dotnet build CloudPlayX.slnx -c Release
+dotnet build Vydrix.slnx -c Release
 ```
 
 ```bash
-dotnet test tests/CloudPlayX.Tests
+dotnet test tests/Vydrix.Tests
 ```
 
-Integration tests (`tests/CloudPlayX.IntegrationTests`) mount real drives and take several minutes. Please run them
+Integration tests (`tests/Vydrix.IntegrationTests`) mount real drives and take several minutes. Please run them
 when you change mounting, caching or streaming code, and include the results in your pull request.
 
-To build the installer (`dist/CloudPlayX-<version>-setup.exe`), install Inno Setup 6
+To build the installer (`dist/VYDRIX-<version>-setup.exe`), install Inno Setup 6
 (`winget install JRSoftware.InnoSetup`) and run `installer/build-release.ps1`.

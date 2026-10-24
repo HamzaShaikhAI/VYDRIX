@@ -1,5 +1,5 @@
-# Generates Assets\cloudplayx.ico (16-256 px PNG frames) for the CLOUDPLAY X desktop app.
-param([string]$Out = "$PSScriptRoot\..\src\CloudPlayX.Desktop\Assets\cloudplayx.ico")
+# Generates Assets\vydrix.ico (16-256 px PNG frames) for the VYDRIX desktop app.
+param([string]$Out = "$PSScriptRoot\..\src\Vydrix.Desktop\Assets\vydrix.ico")
 Add-Type -AssemblyName System.Drawing
 
 function New-Frame([int]$s) {

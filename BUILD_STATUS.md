@@ -1,4 +1,4 @@
-# Build status — CLOUDPLAY X 0.7.0
+# Build status — VYDRIX 3.0 (Archived)
 
 Legend: ✅ implemented and tested on this machine · 🟡 implemented, partially tested / tested only in simulation ·
 ⚪ implemented, not exercised by automated tests · ⛔ blocked (external dependency) · ❌ not implemented
@@ -10,7 +10,7 @@ rclone 1.75.2, .NET 10.0.3. Test results: [TEST_REPORT.md](TEST_REPORT.md).
 
 | Feature | Status | Notes |
 |---|---|---|
-| Repository, solution, 12 projects, DI-friendly services | ✅ | `CloudPlayX.slnx` |
+| Repository, solution, 12 projects, DI-friendly services | ✅ | `Vydrix.slnx` |
 | Desktop application (WPF, MVVM, 8 pages, dialogs) | ✅ | Launched on this PC, auto-mounted a drive, live metrics rendered (screenshot verified). Pages driven by UI Automation for screenshots; most dialogs not click-tested |
 | rclone integration (discovery, version, flag capability detection) | ✅ | |
 | WinFsp detection | ✅ | |
@@ -39,7 +39,7 @@ rclone 1.75.2, .NET 10.0.3. Test results: [TEST_REPORT.md](TEST_REPORT.md).
 |---|---|---|
 | Game library (SQLite) | ✅ | |
 | Executable detection + PE import inspection | ✅ | |
-| Missing dependency detection (VC++/DirectX/etc.) | ✅ | Unit-level via `cpx pe`; demo game had none missing |
+| Missing dependency detection (VC++/DirectX/etc.) | ✅ | Unit-level via `vydrix pe`; demo game had none missing |
 | Compatibility analyzer (anti-cheat, launchers, installers, engines) | 🟡 | Rules implemented; exercised on the demo game only |
 | Launch + process-tree monitoring + failure diagnostics | ✅ | Job objects, NTSTATUS decoding, event log |
 | Cloud Direct mode | ✅ | Demo game |

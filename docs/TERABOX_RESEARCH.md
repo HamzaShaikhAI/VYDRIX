@@ -21,7 +21,7 @@ CLOUDPLAY X does **not** integrate TeraBox:
   any web-client change breaks it, and accounts could be flagged.
 - Streaming needs reliable HTTP range requests and stable file IDs; neither is documented.
 
-The provider interface keeps a `TeraBox` adapter marked **Unsupported** (`src/CloudPlayX.Providers/Providers.cs`),
+The provider interface keeps a `TeraBox` adapter marked **Unsupported** (`src/Vydrix.Providers/Providers.cs`),
 so the UI explains the situation instead of offering a broken option.
 
 ## What would change this

@@ -11,7 +11,7 @@ public sealed record RemoteEntry(string Name, string Type);
 public sealed record RemoteItem(string Name, string Path, bool IsDir, long Size, DateTimeOffset? ModTime, string? MimeType);
 
 /// <summary>
-/// Owns VYDRIX's private rclone config file (%LOCALAPPDATA%\CloudPlayX\rclone.conf). When encryption is enabled
+/// Owns VYDRIX's private rclone config file (%LOCALAPPDATA%\Vydrix\rclone.conf). When encryption is enabled
 /// the file is encrypted by rclone itself with a random password that is stored DPAPI-protected and handed to rclone
 /// only through the RCLONE_CONFIG_PASS environment variable.
 /// </summary>

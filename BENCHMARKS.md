@@ -1,19 +1,19 @@
 # Benchmarks
 
-Two kinds of benchmark, both reproducible with `benchmarks/CloudPlayX.Benchmarks`. Raw outputs (Markdown + JSON) are
+Two kinds of benchmark, both reproducible with `benchmarks/Vydrix.Benchmarks`. Raw outputs (Markdown + JSON) are
 in `benchmarks/results/`. Nothing here is estimated or hand-edited.
 
 ```bash
-dotnet run -c Release --project benchmarks/CloudPlayX.Benchmarks -- real --mbps 70 --latency 80
+dotnet run -c Release --project benchmarks/Vydrix.Benchmarks -- real --mbps 70 --latency 80
 ```
 
 ```bash
-dotnet run -c Release --project benchmarks/CloudPlayX.Benchmarks -- sim --scale 0.25
+dotnet run -c Release --project benchmarks/Vydrix.Benchmarks -- sim --scale 0.25
 ```
 
 ## 1. Real end-to-end (measured)
 
-**Setup:** the real CLOUDPLAY X stack (AppHost, rclone 1.75.2, WinFsp, prediction engine) on the i3-10105F test PC.
+**Setup:** the real VYDRIX stack (AppHost, rclone 1.75.2, WinFsp, prediction engine) on the i3-10105F test PC.
 The "cloud" is SimCloud, a local HTTP server throttled to **70 Mbps with 80 ms per-request latency** (Google Drive was
 not available for automated runs). Workload: the DRM-free **CPX demo game** loading level 2 — 409 reads, 54.5 MiB,
 from 4 × 96 MiB archives. Load time is measured by the demo game itself. Each cloud scenario starts with an empty
@@ -23,9 +23,9 @@ cache unless stated. Two complete runs:
 |---|---|---|---|---|---|---|
 | **A** Physical SSD | 0.09 s | 0.10–0.12 s | — | — | 0 | — |
 | **B** Standard rclone mount (rclone defaults: buffer 16M, chunk 128M), cold | 56.5 s | 65.2 s | 551 MiB | 65 | 89 | 142 MiB |
-| **C** CLOUDPLAY X cold (no profile) | 21.0 s | 20.3 s | 117 MiB | 164 | 168 | 57 MiB |
-| **D** CLOUDPLAY X warm: 2 profiled launches, cache cleared, Optimize & Prepare, *unseen* level | 8.2 s | 7.7 s | 39 MiB during play (+179 MiB in a 31.9 s Prepare) | 43 | 39 | 58 MiB |
-| **D′** CLOUDPLAY X fully warm cache | 0.15 s | 0.27 s | ~0 | 0 | 0–1 | 58 MiB |
+| **C** VYDRIX cold (no profile) | 21.0 s | 20.3 s | 117 MiB | 164 | 168 | 57 MiB |
+| **D** VYDRIX warm: 2 profiled launches, cache cleared, Optimize & Prepare, *unseen* level | 8.2 s | 7.7 s | 39 MiB during play (+179 MiB in a 31.9 s Prepare) | 43 | 39 | 58 MiB |
+| **D′** VYDRIX fully warm cache | 0.15 s | 0.27 s | ~0 | 0 | 0–1 | 58 MiB |
 
 Phases (run 2): B startup/menu/level 3.6 / 44.7 / 15.7 s; C 1.1 / 9.7 / 8.6 s; D 0.29 / 1.13 / 6.2 s.
 

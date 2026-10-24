@@ -1,4 +1,4 @@
-# Test report — CLOUDPLAY X 0.7.0
+# Test report — VYDRIX (Archived Release Baseline)
 
 All tests below were **actually executed** on the development PC on 2026-10-10/11:
 Windows 11 Pro 25H2 (10.0.26200), non-admin user, Developer Mode on, Intel i3-10105F, RX 580, 16 GB RAM,
@@ -8,10 +8,10 @@ WinFsp 2.1.25156, rclone v1.75.2, .NET 10.0.3. Nothing was run on a clean machin
 
 | Suite | Result |
 |---|---|
-| Unit tests (`tests/CloudPlayX.Tests`) | **54 / 54 passed** (0.7.0 release build, 2026-10-12) |
-| Integration tests (`tests/CloudPlayX.IntegrationTests`, real rclone + WinFsp mounts) | **27 / 27** — final full run 26 passed, 1 failed (test-design flaw, see below), fixed and re-run: passed |
+| Unit tests (`tests/Vydrix.Tests`) | **54 / 54 passed** (0.7.0 release build, 2026-10-12) |
+| Integration tests (`tests/Vydrix.IntegrationTests`, real rclone + WinFsp mounts) | **27 / 27** — final full run 26 passed, 1 failed (test-design flaw, see below), fixed and re-run: passed |
 | End-to-end game flow (in the integration suite) | passed |
-| Release build + `cpx deps` smoke test in published folder | passed |
+| Release build + `vydrix deps` smoke test in published folder | passed |
 | Install / uninstall of the release ZIP (custom folder) | passed (see notes) |
 | Desktop UI: launch, auto-mount, all 8 pages rendered via UI Automation | passed after fixing one bug (below) |
 | Google Drive end-to-end | **not run** — needs the user's own OAuth client and Google account |
@@ -20,22 +20,22 @@ WinFsp 2.1.25156, rclone v1.75.2, .NET 10.0.3. Nothing was run on a clean machin
 ## How to reproduce
 
 ```bash
-dotnet test tests/CloudPlayX.Tests
+dotnet test tests/Vydrix.Tests
 ```
 
 The integration suite creates a ~0.9 GB dataset under `.work/it/` on the first run. The end-to-end game test needs
 the demo game copied into that dataset:
 
 ```bash
-dotnet build tests/CpxDemoGame -c Release
+dotnet build tests/VydrixDemoGame -c Release
 ```
 
 ```bash
-powershell -Command "$g='.work/it/dataset/Games/CPX Demo Game'; New-Item -ItemType Directory -Force $g; Copy-Item tests/CpxDemoGame/bin/Release/net10.0-windows/* $g -Exclude *.pdb; & \"$g/CpxDemoGame.exe\" --generate $g"
+powershell -Command "$g='.work/it/dataset/Games/CPX Demo Game'; New-Item -ItemType Directory -Force $g; Copy-Item tests/VydrixDemoGame/bin/Release/net10.0-windows/* $g -Exclude *.pdb; & \"$g/CpxDemoGame.exe\" --generate $g"
 ```
 
 ```bash
-dotnet test tests/CloudPlayX.IntegrationTests
+dotnet test tests/Vydrix.IntegrationTests
 ```
 
 ## Unit tests (52)
