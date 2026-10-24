@@ -2,6 +2,44 @@
 
 All notable changes to the VYDRIX virtual storage and game streaming engine are documented in this file.
 
+## [1.2.0] - 2026-10-24
+
+### Zero Footprint Mode (512 MiB Hard Bounded Virtual Drive)
+- **Hard 512 MiB Cache Bound on C:**
+  - Added `CachePolicyProfile.ZeroFootprint` enforcing exactly 512 MiB (`536,870,912` bytes) cache budget on drive `C:`.
+  - Added `MetadataReserveBytes` (default: 16 MiB headroom) to guarantee room for rclone sparse file tracking and `vfsMeta` JSON indices without risking metadata starvation.
+  - Added `EffectiveDataBudgetForProfile()` allocating 496 MiB strictly for cached data chunks.
+  - Sets `--vfs-cache-max-size 512Mi`, `--vfs-cache-poll-interval 15s`, and `--vfs-cache-max-age 1h` in `MountPlanning.cs`.
+
+- **Prefetching Disabled (Demand Reads Only):**
+  - Added `DemandOnlyMode` to `StreamingEngine.cs` with `SetDemandOnly(bool enabled)`:
+    - Automatically cancels all queued prefetch items and clears speculative queues.
+    - Disables Markov transitions, sequential lookahead, and startup block scheduling.
+    - Rejects background prefetch requests immediately (`PrefetchStatus.Dropped`).
+    - Forces `--vfs-read-ahead 0` and `--buffer-size 0` in rclone mount flags.
+
+- **In-Flight Capacity Reservation:**
+  - Implemented thread-safe `TryReserveCapacity(long requestedBytes, out CapacityReservation? reservation)` in `SmartCacheManager.cs`.
+  - Atomically accounts for in-flight downloads against the 496 MiB data budget.
+  - Triggers synchronous LRU eviction (`ReclaimLRUSynchronous`) if projected usage exceeds usable headroom.
+  - Strictly refuses reservation and provides actionable diagnostics (`LastAllocationFailureReason`, `CapacityExhaustionMessage`) when candidates cannot be safely evicted.
+
+- **Process-Tree Aware Game Lifecycle & Cleanup:**
+  - Multi-session concurrent game tracking in `AppHost.cs` (`_activeLaunches = new ConcurrentDictionary<string, LaunchSession>()`).
+  - Added 1.5-second I/O and handle settling drain in `OnLaunchEndedAsync` to ensure Windows handles, memory-mapped files, and WinFsp buffers flush before eviction.
+  - Added pending upload check querying rclone RC API before post-game cache reclamation.
+  - Automated safe transient game cache eviction (`ReclaimGameCacheAsync`) triggered upon game process tree exit.
+
+- **Desktop UI Integration (`SmartCacheView.xaml` & `ConfigViewModels.cs`):**
+  - Added one-click Zero Footprint Mode banner with instant toggle button.
+  - Storage Profile ComboBox includes `ZeroFootprint`.
+  - Added live indicators for Zero Footprint Mode, Demand-Only prefetching policy, 2-hour periodic maintenance, post-game cleanup, metadata headroom (16 MiB), in-flight reserved bytes, and active game sessions.
+  - Updated action button to "Run safe cleanup now" with tooltip binding to `LastCleanupInfo` and live `SafetyAlert` banner.
+
+- **Automated Verification & Test Suite Expansion:**
+  - Added `ZeroFootprintModeTests.cs` implementing automated tests for all 20 required scenarios (default budget, C: path resolution, disabled prefetch, demand reads, concurrent allocations, in-flight reservation, handle locks, dirty/pinned protection, incomplete download safety, metadata retention, post-game cleanup, 1.5s drain delay, crash locks, multi-game protection, mount transitions, network resilience, restart recovery, application file isolation, crash accounting, and bounded growth).
+  - Total test suite expanded to **115 passing tests (100% pass rate, 0 failed, 0 skipped)**.
+
 ## [1.1.0] - 2026-10-24
 
 ### Visual Identity & Windows Integration

@@ -1,4 +1,4 @@
-﻿using System.Collections.ObjectModel;
+using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Globalization;
 using System.Text.Json;
@@ -34,6 +34,10 @@ public sealed partial class SmartCacheViewModel : PageViewModel
     [ObservableProperty] private string _effective = "";
     [ObservableProperty] private string _profile = "Balanced";
     [ObservableProperty] private string _cacheMode = "Full";
+    [ObservableProperty] private bool _zeroFootprintMode;
+    [ObservableProperty] private string _zeroFootprintToggleText = "Enable Zero Footprint";
+    [ObservableProperty] private string _lastCleanupInfo = "Never";
+    [ObservableProperty] private string _safetyAlert = "";
     [ObservableProperty] private bool _purgeCacheOnExit;
     [ObservableProperty] private bool _lowSpaceAdaptiveMode = true;
     [ObservableProperty] private bool _autoReclaimOnGameExit = true;
@@ -50,6 +54,8 @@ public sealed partial class SmartCacheViewModel : PageViewModel
         MaxAgeDays = c.MaxAge.TotalDays.ToString("0", CultureInfo.InvariantCulture);
         CacheRoot = Host.Paths.CacheRootFor(Host.Settings);
         Profile = c.Profile.ToString();
+        ZeroFootprintMode = c.ZeroFootprintMode;
+        ZeroFootprintToggleText = ZeroFootprintMode ? "Disable Zero Footprint" : "Enable Zero Footprint";
         CacheMode = c.CacheMode.ToString();
         PurgeCacheOnExit = c.PurgeCacheOnExit;
         LowSpaceAdaptiveMode = c.LowSpaceAdaptiveMode;
@@ -103,8 +109,22 @@ public sealed partial class SmartCacheViewModel : PageViewModel
                 hitRatio,
                 usage.logical);
 
+            if (Host.CacheManager.LastReport != null)
+            {
+                LastCleanupInfo = $"{Host.CacheManager.LastReport.Timestamp:g} · Reclaimed {ByteSize.Format(Host.CacheManager.LastReport.BytesReclaimed)} ({Host.CacheManager.LastReport.FilesEvicted} files)";
+            }
+            SafetyAlert = Host.CacheManager.IsCapacityExhausted ? (Host.CacheManager.CapacityExhaustionMessage ?? "Capacity exhausted") : "";
+
+            var isZf = Host.Settings.Cache.ZeroFootprintMode;
             Usage.ReplaceWith([
-                new("Storage Profile", Profile),
+                new("Zero Footprint Mode", isZf ? "ENABLED (512 MiB hard cap on C:)" : "Disabled", isZf ? "ok" : "muted"),
+                new("Prefetching Policy", isZf ? "OFF (Demand reads only)" : (Host.Settings.Streaming.PredictionEnabled ? "Active (Predictive)" : "Off"), isZf ? "ok" : "accent"),
+                new("Periodic Maintenance", "Every 2 hours"),
+                new("Post-Game Cleanup", Host.Settings.Cache.AutoReclaimOnGameExit ? "Enabled (Automatic)" : "Disabled"),
+                new("Active Game Sessions", Host.ActiveLaunches.Count.ToString()),
+                new("Resolved Cache Path", Path.GetFullPath(root)),
+                new("Metadata Headroom", ByteSize.Format(Host.Settings.Cache.MetadataReserveBytes)),
+                new("In-Flight Reserved", ByteSize.Format(Host.CacheManager.InFlightReservedBytes)),
                 new("Physical on disk", ByteSize.Format(stats.PhysicalAllocatedBytes)),
                 new("Avoided storage (saved)", ByteSize.Format(stats.AvoidedStorageBytes), "ok"),
                 new("Cache hit ratio", $"{stats.CacheHitRatio:P1}"),
@@ -116,6 +136,40 @@ public sealed partial class SmartCacheViewModel : PageViewModel
                 new("Files with pending uploads", usage.dirty.ToString(), usage.dirty > 0 ? "warn" : "muted"),
             ]);
         });
+    }
+
+    [RelayCommand]
+    private void ToggleZeroFootprint()
+    {
+        var c = Host.Settings.Cache;
+        ZeroFootprintMode = !ZeroFootprintMode;
+        c.ZeroFootprintMode = ZeroFootprintMode;
+        ZeroFootprintToggleText = ZeroFootprintMode ? "Disable Zero Footprint" : "Enable Zero Footprint";
+
+        if (ZeroFootprintMode)
+        {
+            BudgetGb = "0.5";
+            Profile = "ZeroFootprint";
+            c.BudgetBytes = 512 * ByteSize.MiB;
+            Host.Engine.SetDemandOnly(true);
+            Host.Settings.Streaming.PredictionEnabled = false;
+            AutoReclaimOnGameExit = true;
+            c.AutoReclaimOnGameExit = true;
+            CacheRoot = Host.Paths.DefaultCacheRoot;
+            c.CacheRoot = Host.Paths.DefaultCacheRoot;
+            Say("Zero Footprint Mode enabled: strictly 512 MiB hard cap on C:, demand reads only, post-game cleanup active.", "ok");
+        }
+        else
+        {
+            Profile = "Balanced";
+            BudgetGb = "5";
+            c.BudgetBytes = 5 * ByteSize.GiB;
+            Host.Engine.SetDemandOnly(false);
+            Host.Settings.Streaming.PredictionEnabled = true;
+            Say("Zero Footprint Mode disabled: returned to Balanced profile (5 GiB).", "ok");
+        }
+        Host.SaveSettings();
+        _ = RefreshAsync();
     }
 
     [RelayCommand] private void Preset(double gb) => BudgetGb = gb.ToString(CultureInfo.InvariantCulture);

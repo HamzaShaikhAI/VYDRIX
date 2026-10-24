@@ -94,6 +94,22 @@ public sealed class StreamingEngine : IForegroundMonitor, IAsyncDisposable
     public PrefetchScheduler Scheduler { get; }
     public long BlockSize => _settings.BlockSizeBytes;
     public bool PredictionEnabled { get => _settings.PredictionEnabled; set => _settings.PredictionEnabled = value; }
+    public bool DemandOnlyMode { get; private set; }
+
+    public void SetDemandOnly(bool enabled)
+    {
+        DemandOnlyMode = enabled;
+        if (enabled)
+        {
+            PredictionEnabled = false;
+            Scheduler.Paused = true;
+            Scheduler.Cancel(_ => true);
+        }
+        else
+        {
+            Scheduler.Paused = false;
+        }
+    }
 
     // Application-read metrics (prefetch reads are excluded).
     public long Hits, Misses, Reads, BytesServed, UnknownHitState;
@@ -172,7 +188,7 @@ public sealed class StreamingEngine : IForegroundMonitor, IAsyncDisposable
                 s.Historic.Observe(key, e.Timestamp);
                 Queue.MarkCached(e.MountId, e.Path, idx);
                 try { ApplicationBlockRead?.Invoke(s, key); } catch (Exception) { }
-                if (!_settings.PredictionEnabled) continue;
+                if (!_settings.PredictionEnabled || DemandOnlyMode) continue;
                 var access = new BlockAccess(key, e.Timestamp, e.CacheHit);
                 foreach (var p in s.Predictors)
                 {
@@ -188,6 +204,7 @@ public sealed class StreamingEngine : IForegroundMonitor, IAsyncDisposable
 
     private EnqueueResult Schedule(GameSession s, Prediction pred, string? owner = null, bool explicitRequest = false)
     {
+        if (DemandOnlyMode && !explicitRequest) return EnqueueResult.Rejected;
         var mountPath = s.ToMountPath(pred.Block.Path);
         var offset = pred.Block.Index * BlockSize;
         if (_isCached?.Invoke(s.MountId, mountPath, offset, BlockSize) == true)
@@ -232,15 +249,18 @@ public sealed class StreamingEngine : IForegroundMonitor, IAsyncDisposable
         var disabled = _store.LoadPredictorStats(gameId)
             .Where(p => p.Disabled || (p.Useful + p.Wasted >= 2L * _settings.PredictorEvaluationSamples && p.Accuracy < _settings.MinPredictorAccuracy))
             .Select(p => p.Predictor).ToHashSet();
-        s.Predictors.Add(new MarkovPredictor(historic, _settings.MinConfidence) { Enabled = !disabled.Contains("markov") });
-        s.Predictors.Add(new SequentialPredictor(Governor.ReadAheadBlocks, path => FileBlocks(s, path)) { Enabled = !disabled.Contains("sequential") });
+        if (!DemandOnlyMode)
+        {
+            s.Predictors.Add(new MarkovPredictor(historic, _settings.MinConfidence) { Enabled = !disabled.Contains("markov") });
+            s.Predictors.Add(new SequentialPredictor(Governor.ReadAheadBlocks, path => FileBlocks(s, path)) { Enabled = !disabled.Contains("sequential") });
+        }
         _sessions[gameId] = s;
 
         if (_prepared.TryRemove(gameId, out var prepared))
             lock (prepared) foreach (var (b, bytes, at) in prepared) s.Accounting.RecordPrefetch(b, StartupPredictor.Name, bytes, at);
 
         Queue.BudgetBytes = _settings.SessionPrefetchBudgetBytes;
-        if (_settings.PredictionEnabled && !disabled.Contains(StartupPredictor.Name))
+        if (!DemandOnlyMode && _settings.PredictionEnabled && !disabled.Contains(StartupPredictor.Name))
         {
             var (count, history) = _store.LoadHistory(gameId);
             s.Startup = StartupStream.FromHistory(history, count, _settings.MinConfidence, _settings.StartupWindow, _settings.StartupHorizon.TotalMilliseconds);
@@ -254,7 +274,7 @@ public sealed class StreamingEngine : IForegroundMonitor, IAsyncDisposable
     /// <summary>Schedules learned startup blocks that are due within the horizon of the game's current progress.</summary>
     private int ReleaseStartup(GameSession s)
     {
-        if (s.Startup is null || !_settings.PredictionEnabled) return 0;
+        if (s.Startup is null || !_settings.PredictionEnabled || DemandOnlyMode) return 0;
         int n = 0;
         foreach (var p in s.Startup.Due(s.ProgressMs))
             if (Schedule(s, p) is EnqueueResult.Queued or EnqueueResult.Upgraded) n++;
@@ -285,6 +305,8 @@ public sealed class StreamingEngine : IForegroundMonitor, IAsyncDisposable
     public async Task<PrepareResult> PrepareAsync(string gameId, string mountId, string gameRootInMount, long maxBytes,
         IProgress<PrepareProgress>? progress, CancellationToken ct, TimeSpan? timeout = null, Func<string, bool>? include = null)
     {
+        if (DemandOnlyMode)
+            return new PrepareResult(false, 0, 0, 0, 0, 0, 0, 0, 0, TimeSpan.Zero, true, 0);
         var (sessions, history) = _store.LoadHistory(gameId);
         var predictions = StartupPredictor.Predict(history, sessions, _settings.MinConfidence, _settings.StartupWindow);
         if (include != null) predictions = predictions.Where(p => include(p.Block.Path)).ToList();

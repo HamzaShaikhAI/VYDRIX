@@ -5,6 +5,9 @@ namespace Vydrix.Core;
 
 public enum CachePolicyProfile
 {
+    /// <summary>Zero Footprint Mode: 512 MiB strictly bounded hard cap on C:, prefetching disabled, game-aware cleanup, periodic maintenance.</summary>
+    ZeroFootprint,
+
     /// <summary>512 MiB conservative hard cap with aggressive eviction and transient caching.</summary>
     Minimal,
 
@@ -105,18 +108,47 @@ public sealed class CacheSettings
 
     public List<string> PinnedPaths { get; set; } = new();
 
+    /// <summary>Whether Zero Footprint Mode is active (strictly bounded 512 MiB budget on C:, demand reads only, post-game cleanup, 2-hr maintenance).</summary>
+    public bool ZeroFootprintMode
+    {
+        get => Profile == CachePolicyProfile.ZeroFootprint;
+        set
+        {
+            if (value)
+            {
+                Profile = CachePolicyProfile.ZeroFootprint;
+                AutoReclaimOnGameExit = true;
+                MaintenanceInterval = TimeSpan.FromHours(2);
+                BufferSizeBytes = 0;
+                ReadAheadBytes = 0;
+            }
+            else if (Profile == CachePolicyProfile.ZeroFootprint)
+            {
+                Profile = CachePolicyProfile.Balanced;
+            }
+        }
+    }
+
+    /// <summary>Headroom reserved within the cache budget for filesystem structures and vfsMeta JSON files (default: 16 MiB).</summary>
+    public long MetadataReserveBytes { get; set; } = 16 * ByteSize.MiB;
+
     /// <summary>Computes the effective budget for the active profile.</summary>
     public long EffectiveBudgetForProfile() => Profile switch
     {
+        CachePolicyProfile.ZeroFootprint => 512 * ByteSize.MiB,
         CachePolicyProfile.Minimal => 512 * ByteSize.MiB,
         CachePolicyProfile.Disabled => 0,
         CachePolicyProfile.Balanced => BudgetBytes > 0 ? BudgetBytes : 5 * ByteSize.GiB,
         _ => BudgetBytes
     };
 
+    /// <summary>Computes the effective data budget (excluding metadata reserve headroom).</summary>
+    public long EffectiveDataBudgetForProfile() => Math.Max(16 * ByteSize.MiB, EffectiveBudgetForProfile() - MetadataReserveBytes);
+
     /// <summary>Computes the effective max age for the active profile.</summary>
     public TimeSpan EffectiveMaxAgeForProfile() => Profile switch
     {
+        CachePolicyProfile.ZeroFootprint => TimeSpan.FromHours(1),
         CachePolicyProfile.Minimal => TimeSpan.FromHours(1),
         CachePolicyProfile.Disabled => TimeSpan.Zero,
         _ => MaxAge

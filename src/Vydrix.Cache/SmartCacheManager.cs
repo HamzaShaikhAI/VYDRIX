@@ -80,6 +80,158 @@ public sealed class SmartCacheManager : IDisposable
     public event Action<MaintenanceReport>? MaintenanceCompleted;
     public bool IsCapacityExhausted { get; private set; }
     public string? CapacityExhaustionMessage { get; private set; }
+    public string? LastAllocationFailureReason { get; private set; }
+
+    private long _inFlightReservedBytes;
+    private readonly object _allocationGate = new();
+
+    public long InFlightReservedBytes => Volatile.Read(ref _inFlightReservedBytes);
+
+    public sealed class CapacityReservation : IDisposable
+    {
+        private readonly SmartCacheManager _mgr;
+        private int _disposed;
+        public long Bytes { get; }
+
+        internal CapacityReservation(SmartCacheManager mgr, long bytes)
+        {
+            _mgr = mgr;
+            Bytes = bytes;
+        }
+
+        public void Dispose()
+        {
+            if (Interlocked.Exchange(ref _disposed, 1) == 0)
+            {
+                _mgr.ReleaseReservation(Bytes);
+            }
+        }
+    }
+
+    internal void ReleaseReservation(long bytes)
+    {
+        lock (_allocationGate)
+        {
+            _inFlightReservedBytes = Math.Max(0, _inFlightReservedBytes - bytes);
+        }
+    }
+
+    /// <summary>
+    /// Thread-safely checks and reserves cache capacity before admitting a new download or allocation.
+    /// Accounts for physical disk usage, in-flight reservations, and metadata reserve headroom.
+    /// Prevents concurrent requests from collectively exceeding the 512 MiB budget.
+    /// </summary>
+    public bool TryReserveCapacity(long requestedBytes, out CapacityReservation? reservation)
+    {
+        reservation = null;
+        if (requestedBytes <= 0) return true;
+
+        var budget = _settings.EffectiveBudgetForProfile();
+        var metadataReserve = _settings.MetadataReserveBytes;
+        var usableBudget = Math.Max(16 * ByteSize.MiB, budget - metadataReserve);
+
+        lock (_allocationGate)
+        {
+            var currentUsage = MeasureCurrentPhysicalBytes();
+            var projected = currentUsage + _inFlightReservedBytes + requestedBytes;
+
+            if (projected <= usableBudget)
+            {
+                _inFlightReservedBytes += requestedBytes;
+                reservation = new CapacityReservation(this, requestedBytes);
+                LastAllocationFailureReason = null;
+                return true;
+            }
+
+            // Exceeds usable budget; attempt synchronous eviction of eligible LRU items
+            var targetToReclaim = projected - usableBudget;
+            var freed = ReclaimLRUSynchronous(targetToReclaim);
+            var updatedUsage = MeasureCurrentPhysicalBytes();
+
+            if (updatedUsage + _inFlightReservedBytes + requestedBytes <= usableBudget)
+            {
+                _inFlightReservedBytes += requestedBytes;
+                reservation = new CapacityReservation(this, requestedBytes);
+                LastAllocationFailureReason = null;
+                return true;
+            }
+
+            // Capacity exhausted: remaining cached items are protected (active, locked, or pinned)
+            IsCapacityExhausted = true;
+            CapacityExhaustionMessage = $"Cache capacity exhausted ({ByteSize.Format(updatedUsage + _inFlightReservedBytes)} / {ByteSize.Format(usableBudget)}). All candidate files are active in running games, pinned, or locked.";
+            LastAllocationFailureReason = CapacityExhaustionMessage;
+            _logger?.LogWarning("Capacity reservation denied for {Bytes}: {Reason}", ByteSize.Format(requestedBytes), CapacityExhaustionMessage);
+            return false;
+        }
+    }
+
+    public long ReclaimLRUSynchronous(long targetBytes)
+    {
+        long freed = 0;
+        var pinnedList = _pinnedPathsProvider();
+        var candidateFiles = new List<EvictionCandidate>();
+
+        foreach (var mount in _mountsProvider())
+        {
+            var mountCacheDir = Path.Combine(_cacheRoot, "m-" + mount.Id);
+            if (!Directory.Exists(mountCacheDir)) continue;
+
+            if (!File.Exists(Path.Combine(mountCacheDir, CacheMaintenance.Marker)) &&
+                !File.Exists(Path.Combine(mountCacheDir, CacheMaintenance.LegacyMarker)))
+                continue;
+
+            var isMounted = _isMountActive(mount.Id);
+            foreach (var cf in CacheInspector.Enumerate(mountCacheDir, mount.RemotePath))
+            {
+                if (cf.Dirty) continue; // protected: pending upload
+                var fullKey = $"{mount.Id}:{cf.RemotePath}";
+                if (pinnedList.Any(p => string.Equals(p, fullKey, StringComparison.OrdinalIgnoreCase) ||
+                                        p.EndsWith(":" + cf.RemotePath, StringComparison.OrdinalIgnoreCase) ||
+                                        p.EndsWith("/" + cf.RemotePath, StringComparison.OrdinalIgnoreCase) ||
+                                        string.Equals(p, cf.RemotePath, StringComparison.OrdinalIgnoreCase)))
+                    continue; // protected: pinned
+
+                if (_isGameActive(cf.RemotePath)) continue; // protected: active game session
+
+                var dataFile = FindDataFilePath(mountCacheDir, cf.RemotePath, mount.RemotePath);
+                if (dataFile != null && IsFileLocked(dataFile)) continue; // protected: open file handle
+
+                var metaFile = FindMetaFilePath(mountCacheDir, cf.RemotePath, mount.RemotePath);
+
+                candidateFiles.Add(new EvictionCandidate(
+                    mount.Id, mount.DisplayName, cf.RemotePath, cf.PhysicalBytes, cf.LastAccess, dataFile, metaFile, isMounted));
+            }
+        }
+
+        candidateFiles.Sort((a, b) => a.LastAccess.CompareTo(b.LastAccess));
+
+        foreach (var candidate in candidateFiles)
+        {
+            if (freed >= targetBytes) break;
+
+            try
+            {
+                if (candidate.DataFilePath != null && File.Exists(candidate.DataFilePath))
+                {
+                    var len = candidate.PhysicalBytes > 0 ? candidate.PhysicalBytes : new FileInfo(candidate.DataFilePath).Length;
+                    File.Delete(candidate.DataFilePath);
+                    freed += len;
+                    CleanEmptyDirectoryParents(Path.GetDirectoryName(candidate.DataFilePath)!, Path.Combine(_cacheRoot, "m-" + candidate.MountId, "vfs"));
+                }
+                if (candidate.MetaFilePath != null && File.Exists(candidate.MetaFilePath))
+                {
+                    File.Delete(candidate.MetaFilePath);
+                    CleanEmptyDirectoryParents(Path.GetDirectoryName(candidate.MetaFilePath)!, Path.Combine(_cacheRoot, "m-" + candidate.MountId, "vfsMeta"));
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogDebug(ex, "Could not synchronously evict {Path}", candidate.RemotePath);
+            }
+        }
+
+        return freed;
+    }
 
     private void OnTimerTick(object? state)
     {

@@ -1,4 +1,4 @@
-﻿using System.Collections.Concurrent;
+using System.Collections.Concurrent;
 using Vydrix.Cache;
 using Vydrix.Core;
 using Vydrix.Diagnostics;
@@ -19,6 +19,7 @@ public sealed class AppHost : IAsyncDisposable
     private readonly ILogger _log;
     private readonly ConcurrentDictionary<string, string> _remoteTypes = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<string, (NamedPipeTelemetryServer Server, GameAwareController Controller)> _gameAware = new();
+    private readonly ConcurrentDictionary<string, LaunchSession> _activeLaunches = new(StringComparer.OrdinalIgnoreCase);
     private volatile bool _diskPressure;
     private Timer? _diskTimer;
     private FileStream? _instanceLock;
@@ -54,7 +55,7 @@ public sealed class AppHost : IAsyncDisposable
             Settings.Cache,
             () => Settings.Mounts,
             id => Mounts.Get(id)?.State == MountState.Mounted,
-            path => CurrentLaunch?.Game != null && (string.IsNullOrEmpty(CurrentLaunch.Game.RootPath) || path.Contains(CurrentLaunch.Game.RootPath, StringComparison.OrdinalIgnoreCase)),
+            path => _activeLaunches.Values.Any(l => l.State == LaunchState.Running && (string.IsNullOrEmpty(l.Game.RootPath) || path.Contains(l.Game.RootPath, StringComparison.OrdinalIgnoreCase))),
             () => Settings.Cache.PinnedPaths,
             async (mountId, targetBudget) =>
             {
@@ -128,6 +129,7 @@ public sealed class AppHost : IAsyncDisposable
     public IReadOnlyList<DependencyStatus> Dependencies { get; private set; } = [];
     public IReadOnlyList<RemoteEntry> Remotes { get; private set; } = [];
     public LaunchSession? CurrentLaunch { get; private set; }
+    public IReadOnlyDictionary<string, LaunchSession> ActiveLaunches => _activeLaunches;
     public bool DiskPressure => _diskPressure;
     public string CliPath =>
         File.Exists(Path.Combine(AppPaths.AppDirectory, "vydrix-cli.exe")) ? Path.Combine(AppPaths.AppDirectory, "vydrix-cli.exe") :
@@ -169,6 +171,11 @@ public sealed class AppHost : IAsyncDisposable
     public async Task InitializeAsync(bool restoreMounts = true, CancellationToken ct = default)
     {
         _log.LogInformation("VYDRIX starting (data root {Root})", Paths.DataRoot);
+        if (Settings.Cache.ZeroFootprintMode)
+        {
+            _log.LogInformation("Zero Footprint Mode active: setting demand-only reads (speculative prefetch disabled)");
+            Engine.SetDemandOnly(true);
+        }
         Rclone = await RcloneLocator.LocateAsync(Settings.RclonePathOverride, Paths.DataRoot, ct);
         if (Rclone != null)
         {
@@ -368,15 +375,18 @@ public sealed class AppHost : IAsyncDisposable
             throw;
         }
         CurrentLaunch = launch;
+        _activeLaunches[g.Id] = launch;
         g.LastPlayed = DateTime.Now;
         Library.Save(g);
         _log.LogInformation("Launched {Game} in {Mode} mode: {Exe}", g.Name, g.Mode, launch.Executable);
         StateChanged?.Invoke();
-        _ = launch.Completion.ContinueWith(t => OnLaunchEnded(g, t.Result), TaskScheduler.Default);
+        _ = launch.Completion.ContinueWith(async t => await OnLaunchEndedAsync(g, t.Result), TaskScheduler.Default);
         return launch;
     }
 
-    private void OnLaunchEnded(GameEntry g, LaunchDiagnostics d)
+    public void OnLaunchEnded(GameEntry g, LaunchDiagnostics d) => _ = OnLaunchEndedAsync(g, d);
+
+    public async Task OnLaunchEndedAsync(GameEntry g, LaunchDiagnostics d)
     {
         StopGameAware(g.Id);
         var summary = Engine.EndSession(g.Id);
@@ -398,13 +408,54 @@ public sealed class AppHost : IAsyncDisposable
                 : "");
         Library.Save(fresh);
         _log.Log(d.LikelyFailure ? LogLevel.Warning : LogLevel.Information, "{Game} exited: {Result}", g.Name, fresh.LastLaunchResult);
+
+        // 1. Draining/settling delay: allow Windows file handles, memory mapped buffers, and WinFsp I/O to flush
+        await Task.Delay(1500);
+
+        // 2. Wait for any pending uploads if rclone RC is available
+        if (Mounts.Get(g.MountId)?.Rc is { } rc)
+        {
+            try
+            {
+                var pending = await rc.GetPendingUploadsCountAsync();
+                if (pending > 0)
+                {
+                    _log.LogInformation("Game {Name} has {Count} pending uploads; waiting up to 10s for upload drain", g.Name, pending);
+                    for (int i = 0; i < 10 && pending > 0; i++)
+                    {
+                        await Task.Delay(1000);
+                        pending = await rc.GetPendingUploadsCountAsync();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _log.LogWarning(ex, "Failed to query pending uploads for {Game}", g.Name);
+            }
+        }
+
+        // 3. Mark launch state as exited and release active session protection
+        if (_activeLaunches.TryRemove(g.Id, out var activeLaunch))
+        {
+            activeLaunch.State = LaunchState.Exited;
+        }
+
+        if (CurrentLaunch?.Game.Id == g.Id)
+        {
+            CurrentLaunch.State = LaunchState.Exited;
+        }
+
         StateChanged?.Invoke();
 
+        // 4. Safe post-game cache reclamation
         if (Settings.Cache.AutoReclaimOnGameExit && !string.IsNullOrEmpty(g.RootPath))
         {
             _log.LogInformation("Game {Name} exited; triggering safe transient cache reclamation for {Root}", g.Name, g.RootPath);
-            _ = CacheManager.ReclaimGameCacheAsync(g.RootPath);
+            await CacheManager.ReclaimGameCacheAsync(g.RootPath);
         }
+
+        _activeLaunches.TryRemove(g.Id, out _);
+        StateChanged?.Invoke();
     }
 
     private void StartGameAware(GameEntry g, GameSession session)

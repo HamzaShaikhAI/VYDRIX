@@ -11,10 +11,23 @@
                 <Border Style="{StaticResource Card}">
                     <StackPanel>
                         <TextBlock Text="Storage Policy &amp; Budget" Style="{StaticResource H2}" />
+
+                        <!-- Zero Footprint Mode Banner -->
+                        <Border Background="#1A00F0FF" BorderBrush="#3300F0FF" BorderThickness="1" CornerRadius="6" Padding="12" Margin="0,4,0,14">
+                            <StackPanel>
+                                <DockPanel LastChildFill="False">
+                                    <TextBlock Text="⚡ ZERO FOOTPRINT MODE (512 MiB Hard Cap on C:)" FontWeight="Bold" Foreground="#00F0FF" VerticalAlignment="Center" />
+                                    <Button DockPanel.Dock="Right" Content="{Binding ZeroFootprintToggleText}" Command="{Binding ToggleZeroFootprintCommand}" Style="{StaticResource Primary}" Padding="10,4" />
+                                </DockPanel>
+                                <TextBlock Text="Demand reads only · Speculative prefetch disabled · Post-game auto-cleanup · 2-hour periodic maintenance"
+                                           FontSize="11" Foreground="{StaticResource Dim}" Margin="0,4,0,0" TextWrapping="Wrap" />
+                            </StackPanel>
+                        </Border>
                         
                         <!-- Storage Policy Profiles -->
                         <TextBlock Text="STORAGE PROFILE" Style="{StaticResource Label}" Margin="0,4,0,4" />
                         <ComboBox SelectedValue="{Binding Profile, UpdateSourceTrigger=PropertyChanged}" SelectedValuePath="Content" Width="220" HorizontalAlignment="Left" Margin="0,0,0,10">
+                            <ComboBoxItem Content="ZeroFootprint" />
                             <ComboBoxItem Content="Minimal" />
                             <ComboBoxItem Content="Balanced" />
                             <ComboBoxItem Content="Custom" />
@@ -60,9 +73,11 @@
                         <StackPanel Orientation="Horizontal" Margin="0,16,0,0">
                             <Button Style="{StaticResource Primary}" Content="Apply Policy" Command="{Binding ApplyCommand}" Margin="0,0,8,0" />
                             <Button Content="Migrate to Location…" Command="{Binding MigrateCacheLocationCommand}" Margin="0,0,8,0" />
-                            <Button Content="Run Maintenance" Command="{Binding RunMaintenanceCommand}" Margin="0,0,8,0" />
+                            <Button Content="Run safe cleanup now" ToolTip="{Binding LastCleanupInfo}" Command="{Binding RunMaintenanceCommand}" Margin="0,0,8,0" />
                             <Button Content="Clear Cache" Style="{StaticResource DangerButton}" Command="{Binding ClearCacheCommand}" />
                         </StackPanel>
+                        <TextBlock Text="{Binding LastCleanupInfo, StringFormat='Last cleanup: {0}'}" Style="{StaticResource Caption}" Margin="0,10,0,0" />
+                        <TextBlock Text="{Binding SafetyAlert}" Foreground="{StaticResource Warning}" FontWeight="SemiBold" Margin="0,4,0,0" TextWrapping="Wrap" />
                     </StackPanel>
                 </Border>
 

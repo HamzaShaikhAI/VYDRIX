@@ -59,7 +59,7 @@ public sealed record LaunchDiagnostics(
 /// <summary>A launched game, monitored until its whole process tree has exited.</summary>
 public sealed class LaunchSession
 {
-    internal LaunchSession(GameEntry game, Process process, ProcessTreeTracker? tracker, string exe, string workDir, ExecutionMode mode)
+    public LaunchSession(GameEntry game, Process process, ProcessTreeTracker? tracker, string exe, string workDir, ExecutionMode mode)
     {
         Game = game;
         Process = process;
@@ -77,7 +77,7 @@ public sealed class LaunchSession
     public string WorkingDirectory { get; }
     public ExecutionMode Mode { get; }
     public DateTime Started { get; }
-    public LaunchState State { get; internal set; } = LaunchState.Running;
+    public LaunchState State { get; set; } = LaunchState.Running;
     public LaunchDiagnostics? Result { get; internal set; }
     public Task<LaunchDiagnostics> Completion { get; internal set; } = Task.FromResult<LaunchDiagnostics>(null!);
 

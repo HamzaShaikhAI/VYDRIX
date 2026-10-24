@@ -88,21 +88,21 @@ public static class MountFlagBuilder
         {
             Flag("cache-dir", i.CacheDir);
 
-            var effectiveMax = i.Cache.Profile == CachePolicyProfile.Minimal
+            var effectiveMax = (i.Cache.Profile is CachePolicyProfile.Minimal or CachePolicyProfile.ZeroFootprint)
                 ? 512 * ByteSize.MiB
                 : Math.Max(16 * ByteSize.MiB, i.EffectiveCacheMaxBytes);
 
             Flag("vfs-cache-max-size", ByteSize.ToRclone(effectiveMax));
             if (i.Cache.MinFreeSpaceBytes > 0) Flag("vfs-cache-min-free-space", ByteSize.ToRclone(i.Cache.MinFreeSpaceBytes));
             Flag("vfs-cache-max-age", Dur(i.Cache.EffectiveMaxAgeForProfile()));
-            Flag("vfs-cache-poll-interval", Dur(i.Cache.Profile == CachePolicyProfile.Minimal ? TimeSpan.FromSeconds(15) : i.Cache.PollInterval));
-            Flag("vfs-read-ahead", ByteSize.ToRclone(i.Cache.ReadAheadBytes));
+            Flag("vfs-cache-poll-interval", Dur(i.Cache.Profile is CachePolicyProfile.Minimal or CachePolicyProfile.ZeroFootprint ? TimeSpan.FromSeconds(15) : i.Cache.PollInterval));
+            Flag("vfs-read-ahead", ByteSize.ToRclone(i.Cache.ZeroFootprintMode ? 0 : i.Cache.ReadAheadBytes));
             Flag("vfs-read-chunk-size", ByteSize.ToRclone(i.Cache.ReadChunkSizeBytes));
-            if (i.Cache.ReadChunkStreams > 0) Flag("vfs-read-chunk-streams", i.Cache.ReadChunkStreams.ToString(CultureInfo.InvariantCulture));
+            if (i.Cache.ReadChunkStreams > 0 && !i.Cache.ZeroFootprintMode) Flag("vfs-read-chunk-streams", i.Cache.ReadChunkStreams.ToString(CultureInfo.InvariantCulture));
             Flag("vfs-write-back", Dur(i.Cache.WriteBack));
         }
 
-        Flag("buffer-size", ByteSize.ToRclone(i.Cache.BufferSizeBytes));
+        Flag("buffer-size", ByteSize.ToRclone(i.Cache.ZeroFootprintMode ? 0 : i.Cache.BufferSizeBytes));
         Flag("dir-cache-time", "30m");
         // Executables need the execute bit in the WinFsp ACL mapping; default 0666 makes CreateProcess fail with
         // "Access is denied" (verified on rclone 1.75.2 / WinFsp 2025).
