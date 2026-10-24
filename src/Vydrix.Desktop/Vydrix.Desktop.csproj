@@ -18,6 +18,9 @@
   <ItemGroup>
     <Resource Include="Assets\vydrix.ico" />
     <Resource Include="Assets\vydrix_*.png" />
+    <Resource Include="Assets\vydrix-logo-dark.png" />
+    <Resource Include="Assets\vydrix-logo.svg" />
+    <Resource Include="Assets\vydrix-symbol.svg" />
     <Resource Include="Assets\logo.svg" />
     <None Include="..\..\tools\rclone\rclone.exe" Link="tools\rclone\rclone.exe" CopyToOutputDirectory="PreserveNewest" Condition="Exists('..\..\tools\rclone\rclone.exe')" />
     <None Include="..\..\tools\rclone\SHA256SUMS.v1.75.2" Link="tools\rclone\SHA256SUMS.v1.75.2" CopyToOutputDirectory="PreserveNewest" Condition="Exists('..\..\tools\rclone\SHA256SUMS.v1.75.2')" />

@@ -1,0 +1,120 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <!-- Left outer wing gradient: Vibrant Cyan to Electric Blue -->
+    <linearGradient id="leftWing" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#35D9FF" />
+      <stop offset="45%" stop-color="#287BFF" />
+      <stop offset="100%" stop-color="#1A50D0" />
+    </linearGradient>
+
+    <!-- Right outer wing gradient: Electric Blue to Violet to Magenta -->
+    <linearGradient id="rightWing" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#287BFF" />
+      <stop offset="40%" stop-color="#7047FF" />
+      <stop offset="100%" stop-color="#C43DFF" />
+    </linearGradient>
+
+    <!-- Left inner facet (depth / shadow) -->
+    <linearGradient id="innerLeft" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1F6BE8" />
+      <stop offset="60%" stop-color="#143E9C" />
+      <stop offset="100%" stop-color="#0E2866" />
+    </linearGradient>
+
+    <!-- Right inner facet (depth / violet-blue shadow) -->
+    <linearGradient id="innerRight" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#1A3B8C" />
+      <stop offset="50%" stop-color="#4B22A0" />
+      <stop offset="100%" stop-color="#8C35E2" />
+    </linearGradient>
+
+    <!-- Top bevel left highlight -->
+    <linearGradient id="topBevelLeft" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#7CE8FF" />
+      <stop offset="100%" stop-color="#287BFF" />
+    </linearGradient>
+
+    <!-- Top bevel right highlight -->
+    <linearGradient id="topBevelRight" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#E275FF" />
+      <stop offset="100%" stop-color="#7047FF" />
+    </linearGradient>
+
+    <!-- Cloud stroke neon gradient -->
+    <linearGradient id="cloudGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#35D9FF" />
+      <stop offset="50%" stop-color="#287BFF" />
+      <stop offset="100%" stop-color="#C43DFF" />
+    </linearGradient>
+
+    <!-- Cloud glow filter -->
+    <filter id="neonGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="6" result="blur" />
+      <feMerge>
+        <feMergeNode in="blur" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Background subtle rounded backdrop (optional/transparent by default) -->
+  <g id="vydrix-symbol">
+    <!-- Cloud Contour (sitting inside upper V) -->
+    <!-- Cloud Fill Backdrop -->
+    <path d="M 180,240 
+             C 145,240 135,195 165,170 
+             C 160,135 200,110 230,125 
+             C 245,95 285,95 305,120 
+             C 335,115 365,140 355,175 
+             C 385,195 375,240 332,240 
+             Z" 
+          fill="#080D18" 
+          opacity="0.85" />
+
+    <!-- Cloud Glowing Outline -->
+    <path d="M 175,236 
+             C 142,236 132,192 163,168 
+             C 158,132 198,107 228,122 
+             C 244,92 284,92 304,118 
+             C 334,112 364,138 354,172 
+             C 384,192 374,236 335,236" 
+          fill="none" 
+          stroke="url(#cloudGrad)" 
+          stroke-width="12" 
+          stroke-linecap="round" 
+          stroke-linejoin="round"
+          filter="url(#neonGlow)" />
+
+    <!-- Outer Left Wing of V -->
+    <polygon points="56,180  150,180  256,432  202,432  56,180" 
+             fill="url(#leftWing)" />
+
+    <!-- Outer Left Wing Top Bevel -->
+    <polygon points="56,180  150,180  132,204  78,204" 
+             fill="url(#topBevelLeft)" 
+             opacity="0.9" />
+
+    <!-- Outer Right Wing of V -->
+    <polygon points="456,180  362,180  256,432  310,432  456,180" 
+             fill="url(#rightWing)" />
+
+    <!-- Outer Right Wing Top Bevel -->
+    <polygon points="456,180  362,180  380,204  434,204" 
+             fill="url(#topBevelRight)" 
+             opacity="0.9" />
+
+    <!-- Central Inner Wedge - Left Facet -->
+    <polygon points="256,260  182,232  202,432  256,432" 
+             fill="url(#innerLeft)" />
+
+    <!-- Central Inner Wedge - Right Facet -->
+    <polygon points="256,260  330,232  310,432  256,432" 
+             fill="url(#innerRight)" />
+
+    <!-- Central Ridge Spine Highlight -->
+    <line x1="256" y1="260" x2="256" y2="432" 
+          stroke="#7CE8FF" 
+          stroke-width="2" 
+          opacity="0.6" />
+  </g>
+</svg>

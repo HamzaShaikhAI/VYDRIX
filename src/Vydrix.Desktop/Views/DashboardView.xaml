@@ -4,40 +4,57 @@
              xmlns:c="clr-namespace:Vydrix.Desktop.Controls">
     <ScrollViewer VerticalScrollBarVisibility="Auto">
         <StackPanel Margin="0,0,14,20">
-            <!-- Setup checklist -->
-            <Border Style="{StaticResource Card}" Visibility="{Binding SetupComplete, Converter={StaticResource NotVis}}" BorderBrush="{StaticResource Accent}">
-                <StackPanel>
-                    <TextBlock Text="Get started" Style="{StaticResource H2}" />
-                    <ItemsControl ItemsSource="{Binding Setup}">
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate>
-                                <StackPanel Orientation="Horizontal" Margin="0,3">
-                                    <TextBlock Width="22" FontFamily="{StaticResource IconFont}" FontSize="13" VerticalAlignment="Center">
-                                        <TextBlock.Style>
-                                            <Style TargetType="TextBlock">
-                                                <Setter Property="Text" Value="&#xEA3A;" />
-                                                <Setter Property="Foreground" Value="{StaticResource Dim}" />
-                                                <Style.Triggers>
-                                                    <DataTrigger Binding="{Binding Done}" Value="True">
-                                                        <Setter Property="Text" Value="&#xE930;" />
-                                                        <Setter Property="Foreground" Value="{StaticResource Success}" />
-                                                    </DataTrigger>
-                                                </Style.Triggers>
-                                            </Style>
-                                        </TextBlock.Style>
-                                    </TextBlock>
-                                    <TextBlock Text="{Binding Text}" Width="220" VerticalAlignment="Center" />
-                                    <TextBlock Text="{Binding Hint}" Foreground="{StaticResource Dim}" VerticalAlignment="Center" />
-                                </StackPanel>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
-                    <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
-                        <Button Style="{StaticResource Primary}" Content="Cloud Drives" Command="{Binding GoCommand}" CommandParameter="Cloud Drives" />
-                        <Button Content="Game Library" Command="{Binding GoCommand}" CommandParameter="Game Library" />
+            <!-- Top Hero Row: Setup Checklist & Brand Card -->
+            <Grid Margin="0,0,0,10">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+
+                <!-- Setup checklist -->
+                <Border Style="{StaticResource Card}" Visibility="{Binding SetupComplete, Converter={StaticResource NotVis}}" BorderBrush="{StaticResource Accent}" Margin="0,0,8,0">
+                    <StackPanel>
+                        <TextBlock Text="Get started" Style="{StaticResource H2}" />
+                        <ItemsControl ItemsSource="{Binding Setup}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <StackPanel Orientation="Horizontal" Margin="0,3">
+                                        <TextBlock Width="22" FontFamily="{StaticResource IconFont}" FontSize="13" VerticalAlignment="Center">
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="Text" Value="&#xEA3A;" />
+                                                    <Setter Property="Foreground" Value="{StaticResource Dim}" />
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding Done}" Value="True">
+                                                            <Setter Property="Text" Value="&#xE930;" />
+                                                            <Setter Property="Foreground" Value="{StaticResource Success}" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
+                                        <TextBlock Text="{Binding Text}" Width="220" VerticalAlignment="Center" />
+                                        <TextBlock Text="{Binding Hint}" Foreground="{StaticResource Dim}" VerticalAlignment="Center" />
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
+                            <Button Style="{StaticResource Primary}" Content="Open Cloud Drives" Command="{Binding GoCommand}" CommandParameter="Cloud Drives" />
+                            <Button Content="Game Library" Command="{Binding GoCommand}" CommandParameter="Game Library" />
+                        </StackPanel>
                     </StackPanel>
-                </StackPanel>
-            </Border>
+                </Border>
+
+                <!-- Brand Hero Card (Mockup Match) -->
+                <Border Grid.Column="1" Style="{StaticResource Card}" Margin="8,0,0,0">
+                    <StackPanel Margin="8,6" VerticalAlignment="Center">
+                        <Image Source="pack://application:,,,/Assets/vydrix-logo-dark.png" Height="64" HorizontalAlignment="Left" Margin="0,4,0,12" RenderOptions.BitmapScalingMode="HighQuality" />
+                        <TextBlock Text="Keep your games in cloud storage and run them on this PC, caching the parts they actually read on your SSD."
+                                   Style="{StaticResource Caption}" Foreground="{StaticResource Muted}" TextWrapping="Wrap" LineHeight="20" FontSize="12.5" />
+                    </StackPanel>
+                </Border>
+            </Grid>
 
             <!-- Warnings -->
             <ItemsControl ItemsSource="{Binding Warnings}">
@@ -143,7 +160,7 @@
                 </Border>
             </Grid>
             <TextBlock Style="{StaticResource Caption}" Margin="2,0,14,0"
-                       Text="All figures are measured live from rclone and the VYDRIX engine. Values without a real source are shown as 'Unavailable'. Uncached data always depends on your internet speed: at 70 Mbps the cloud delivers at most ≈ 8.75 MB/s." />
+                       Text="All figures are measured live from rclone and the VYDRIX engine. Values without a real source are shown as 'Unavailable'. Uncached data always depends on your internet speed: at 70 Mbps the cloud delivers at most &#x2248; 8.75 MB/s." />
         </StackPanel>
     </ScrollViewer>
 </UserControl>

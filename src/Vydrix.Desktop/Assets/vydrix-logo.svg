@@ -1,0 +1,111 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 920 260" width="920" height="260">
+  <defs>
+    <!-- Left outer wing gradient: Vibrant Cyan to Electric Blue -->
+    <linearGradient id="logoLeftWing" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#35D9FF" />
+      <stop offset="45%" stop-color="#287BFF" />
+      <stop offset="100%" stop-color="#1A50D0" />
+    </linearGradient>
+
+    <!-- Right outer wing gradient: Electric Blue to Violet to Magenta -->
+    <linearGradient id="logoRightWing" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#287BFF" />
+      <stop offset="40%" stop-color="#7047FF" />
+      <stop offset="100%" stop-color="#C43DFF" />
+    </linearGradient>
+
+    <!-- Inner left depth -->
+    <linearGradient id="logoInnerLeft" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1F6BE8" />
+      <stop offset="60%" stop-color="#143E9C" />
+      <stop offset="100%" stop-color="#0E2866" />
+    </linearGradient>
+
+    <!-- Inner right depth -->
+    <linearGradient id="logoInnerRight" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#1A3B8C" />
+      <stop offset="50%" stop-color="#4B22A0" />
+      <stop offset="100%" stop-color="#8C35E2" />
+    </linearGradient>
+
+    <!-- Neon cloud stroke -->
+    <linearGradient id="logoCloudGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#35D9FF" />
+      <stop offset="50%" stop-color="#287BFF" />
+      <stop offset="100%" stop-color="#C43DFF" />
+    </linearGradient>
+
+    <!-- Accent gradient for the X letter in VYDRIX -->
+    <linearGradient id="xGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#7047FF" />
+      <stop offset="100%" stop-color="#C43DFF" />
+    </linearGradient>
+
+    <!-- Glow filter -->
+    <filter id="logoGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="4" result="blur" />
+      <feMerge>
+        <feMergeNode in="blur" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Left: VYDRIX Symbol (scale: 0.52, pos: 25, 20) -->
+  <g transform="translate(25, 12) scale(0.46)">
+    <!-- Cloud Backdrop -->
+    <path d="M 180,240 
+             C 145,240 135,195 165,170 
+             C 160,135 200,110 230,125 
+             C 245,95 285,95 305,120 
+             C 335,115 365,140 355,175 
+             C 385,195 375,240 332,240 
+             Z" 
+          fill="#080D18" 
+          opacity="0.85" />
+
+    <!-- Cloud Outline -->
+    <path d="M 175,236 
+             C 142,236 132,192 163,168 
+             C 158,132 198,107 228,122 
+             C 244,92 284,92 304,118 
+             C 334,112 364,138 354,172 
+             C 384,192 374,236 335,236" 
+          fill="none" 
+          stroke="url(#logoCloudGrad)" 
+          stroke-width="14" 
+          stroke-linecap="round" 
+          stroke-linejoin="round"
+          filter="url(#logoGlow)" />
+
+    <!-- Left Wing -->
+    <polygon points="56,180  150,180  256,432  202,432  56,180" fill="url(#logoLeftWing)" />
+    <polygon points="56,180  150,180  132,204  78,204" fill="#7CE8FF" opacity="0.9" />
+
+    <!-- Right Wing -->
+    <polygon points="456,180  362,180  256,432  310,432  456,180" fill="url(#logoRightWing)" />
+    <polygon points="456,180  362,180  380,204  434,204" fill="#E275FF" opacity="0.9" />
+
+    <!-- Inner Facets -->
+    <polygon points="256,260  182,232  202,432  256,432" fill="url(#logoInnerLeft)" />
+    <polygon points="256,260  330,232  310,432  256,432" fill="url(#logoInnerRight)" />
+    <line x1="256" y1="260" x2="256" y2="432" stroke="#7CE8FF" stroke-width="2.5" opacity="0.6" />
+  </g>
+
+  <!-- Right: Typography -->
+  <!-- Product Name: VYDRIX -->
+  <text x="275" y="148"
+        font-family="'Segoe UI', -apple-system, BlinkMacSystemFont, 'Montserrat', Roboto, sans-serif"
+        font-size="94"
+        font-weight="900"
+        fill="#F4F7FF"
+        letter-spacing="9">VYDRI<tspan fill="url(#xGrad)">X</tspan></text>
+
+  <!-- Tagline: CLOUD-TO-SSD ENGINE -->
+  <text x="282" y="196"
+        font-family="'Segoe UI', -apple-system, BlinkMacSystemFont, 'Montserrat', Roboto, sans-serif"
+        font-size="22"
+        font-weight="700"
+        fill="#35D9FF"
+        letter-spacing="8">CLOUD-TO-SSD ENGINE</text>
+</svg>

@@ -127,6 +127,14 @@ public sealed class TrayIconManager : IDisposable
         reconnectItem.Click += (_, _) => _ = _host.Mounts.OnSystemResumeAsync();
         _contextMenu.Items.Add(reconnectItem);
 
+        var aboutItem = new MenuItem { Header = "About VYDRIX..." };
+        aboutItem.Click += (_, _) =>
+        {
+            var about = new Views.AboutWindow(_host) { Owner = _window };
+            about.ShowDialog();
+        };
+        _contextMenu.Items.Add(aboutItem);
+
         _contextMenu.Items.Add(new Separator());
 
         var exitItem = new MenuItem { Header = "Exit VYDRIX" };
